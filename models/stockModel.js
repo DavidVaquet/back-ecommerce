@@ -31,3 +31,28 @@ export const addStockProduct = async (product_id, cantidad) => {
         return insert.rows[0];
     }
 };
+
+
+export const reduceStockProduct = async (product_id, cantidad) => {
+
+    const result = await pool.query(`SELECT * FROM stock WHERE product_id = $1`, [product_id]);
+
+    if (result.rows.length === 0) {
+        throw new Error('No existe stock para este producto');
+    };
+
+    if (result.rows[0].cantidad <= 0) {
+        throw new Error('No hay unidades disponibles de este producto');
+      }
+
+    const stockActual = result.rows[0].cantidad;
+
+    if (stockActual < cantidad) {
+        throw new Error('No hay suficiente stock para realizar esta operacion');
+    };
+
+    const cantidadNueva = stockActual - cantidad;
+
+    const updateStock = await pool.query('UPDATE stock SET cantidad = $1 WHERE product_id = $2 RETURNING *;', [cantidadNueva, product_id]);
+    return updateStock.rows[0]
+};

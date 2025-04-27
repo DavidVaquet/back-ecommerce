@@ -5,6 +5,8 @@ import pool from './config/db.js';
 const app = express();
 import productRoutes from './routes/productRoutes.js';
 import stockRoutes from './routes/stockRoutes.js';
+import categoriesRoutes from './routes/categoriesRoutes.js';
+
 dotenv.config();
 
 // Middlewares
@@ -16,6 +18,7 @@ app.use(express.json());
 
 app.use('/api/products', productRoutes);
 app.use('/api/stock', stockRoutes);
+app.use('/api/categories', categoriesRoutes);
 
 app.listen(process.env.PORT, () => {
     console.log('Servidor corriendo en el puerto', process.env.PORT);
@@ -26,4 +29,4 @@ try {
     console.log('Base de datos conectada', result.rows[0].now);
 } catch (error) {
     console.error('Error al conectar la base de datos', error.message);    
-}
+};

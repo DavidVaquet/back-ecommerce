@@ -1,4 +1,4 @@
-import { getStockProductId, addStockProduct } from "../models/stockModel.js";
+import { getStockProductId, addStockProduct, reduceStockProduct } from "../models/stockModel.js";
 
 export const getStockId = async (req, res) => {
 
@@ -35,5 +35,31 @@ export const addStock = async (req, res) => {
     } catch (error) {
         console.error(error);
         return res.status(500).json({ error: 'Error al actualizar el stock.'});
+    }
+};
+
+
+export const reduceStock = async (req, res) => {
+
+    const { productId } = req.params;
+    const { cantidad } = req.body;
+
+    const cantidadNumerica = Number(cantidad);
+
+    if (!productId || isNaN(productId)) {
+        return res.status(400).json({ msg: 'El productId no es valido'})
+    };
+
+    if (!cantidad || isNaN(cantidadNumerica) || cantidadNumerica <= 0) {
+        return res.status(400).json({ msg: 'La cantidad debe ser un mayor a 0'});
+    };
+
+    try {
+        const stockActualizado = await reduceStockProduct(productId, cantidad);
+        return res.status(200).json({ msg: 'Stock reducido correctamente', stock: stockActualizado});
+
+    } catch (error) {
+        console.error(error);
+        return res.status(400).json({ error: 'Error al actualizar el stock'});
     }
 };
