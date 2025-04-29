@@ -36,3 +36,14 @@ export const updateCategory = async (id, nombre, descripcion) => {
     const result = await pool.query(query, values);
     return result.rows[0];
 };
+
+
+export const toggleCategoryState = async (id, activo) => {
+
+    const query = `UPDATE categories SET activo = $1 WHERE id = $2 RETURNING *;`;
+    const values = [activo, id];
+
+    const result = await pool.query(query, values);
+    return result.rows[0];
+
+};

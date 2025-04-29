@@ -1,4 +1,4 @@
-import { getAllCategories, findCategoryByName, createCategory, updateCategory } from "../models/categoriesModel.js";
+import { getAllCategories, findCategoryByName, createCategory, updateCategory, toggleCategoryState } from "../models/categoriesModel.js";
 
 
 export const getCategories = async (req, res) => {
@@ -67,5 +67,30 @@ export const editCategory = async (req, res) => {
     } catch (error) {
         console.error(error);
         return res.status(500).json({ msg: 'Error al actualizar la categoria'});
+    }
+};
+
+
+
+export const categoryState = async (req, res) => {
+
+
+    const { id } = req.params;
+    const { activo } = req.body;
+
+    if (activo === undefined) {
+        return res.status(404).json({ msg: 'Debes definir un estado para la categoria'} );
+    }
+    try {
+        const updateCategoryState = await toggleCategoryState(id, activo);
+
+        if (!updateCategory) {
+            return res.status(404).json({ msg: 'Categoria no encontrada.'});
+        }
+
+        return res.status(200).json({ msg: 'El estado de la categoria fue actualizado exitosamente.', updateCategoryState});
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ msg: 'Error al actualizar el estado de la categoria.'});
     }
 };
