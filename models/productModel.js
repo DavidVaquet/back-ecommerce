@@ -1,14 +1,14 @@
 import pool from '../config/db.js';
 
 
-export const createProduct = async ({nombre, descripcion, precio, imagen_url, category_id}) => {
+export const createProduct = async ({nombre, descripcion, precio, imagen_url, category_id, estado, marca, visible}) => {
 
     const query = `
-    INSERT INTO products (nombre, descripcion, precio, imagen_url, category_id)
-    VALUES ($1, $2, $3, $4, $5)
+    INSERT INTO products (nombre, descripcion, precio, imagen_url, category_id, estado, marca, visible)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     RETURNING *;    `
 
-    const values = [nombre, descripcion, precio, imagen_url, category_id];
+    const values = [nombre, descripcion, precio, imagen_url, category_id, estado, marca, visible];
 
     const result = await pool.query(query, values);
 

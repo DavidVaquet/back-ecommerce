@@ -4,7 +4,7 @@ import { createProduct, getAllProducts, updateProduct, deleteProduct as deletePr
 
 export const addProduct = async (req, res) => {
     
-    const {nombre, descripcion, precio, imagen_url, category_id} = req.body
+    const {nombre, descripcion, precio, imagen_url, category_id, marca, estado, visible} = req.body
     
     if (!nombre || !precio || !category_id || !imagen_url) {
         return res.status(400).json({ error: 'Todos los campos son obligatorios'});
@@ -12,7 +12,7 @@ export const addProduct = async (req, res) => {
     
     try {
 
-        const newProduct = await createProduct({nombre, descripcion, precio, imagen_url, category_id});
+        const newProduct = await createProduct({nombre, descripcion, precio, imagen_url, category_id, marca, estado, visible});
 
         return res.status(201).json({ msg: 'Producto creado correctamente', newProduct});
 
