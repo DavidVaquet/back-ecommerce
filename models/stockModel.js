@@ -1,9 +1,9 @@
 import pool from "../config/db.js";
 
 
-export const getStockProductId = async (product_id) => {
+export const getStockProductId = async (client, product_id) => {
 
-    const query = `SELECT * FROM stock WHERE product_id = $1`;
+    const query = `SELECT cantidad FROM stock WHERE product_id = $1`;
     const values = [product_id];
 
     const result = await pool.query(query, values);
@@ -12,7 +12,7 @@ export const getStockProductId = async (product_id) => {
 };
 
 
-export const addStockProduct = async (product_id, cantidad) => {
+export const addStockProduct = async ({product_id, cantidad}) => {
 
     const result = await pool.query(`SELECT * FROM stock WHERE product_id = $1`, [product_id]);
 
@@ -33,7 +33,7 @@ export const addStockProduct = async (product_id, cantidad) => {
 };
 
 
-export const reduceStockProduct = async (product_id, cantidad) => {
+export const reduceStockProduct = async (client, product_id, cantidad) => {
 
     const result = await pool.query(`SELECT * FROM stock WHERE product_id = $1`, [product_id]);
 

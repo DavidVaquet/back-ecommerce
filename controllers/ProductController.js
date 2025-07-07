@@ -1,20 +1,45 @@
 import { createProduct, getAllProducts, updateProduct, deleteProduct as deleteProductModel } from "../models/productModel.js";
+import { imagenOptimizada } from "../utils/imagenOptimizada.js";
 
 
 
 export const addProduct = async (req, res) => {
     
-    const {nombre, descripcion, precio, imagen_url, category_id, marca, estado, visible} = req.body
+    const {nombre, descripcion, precio, imagen_url, subcategoria_id, marca, estado, visible} = req.body
     
-    if (!nombre || !precio || !category_id || !imagen_url) {
+    if (!nombre || !precio || !subcategoria_id ) {
         return res.status(400).json({ error: 'Todos los campos son obligatorios'});
     };
     
     try {
 
-        const newProduct = await createProduct({nombre, descripcion, precio, imagen_url, category_id, marca, estado, visible});
+        const imagenPrincipal = req.files?.image?.[0];
+        let imagenOptimizadaUrl = null;
+        if (imagenPrincipal){
+            imagenOptimizadaUrl = await imagenOptimizada(imagenPrincipal.path);
+        };
 
-        return res.status(201).json({ msg: 'Producto creado correctamente', newProduct});
+        const imagenUrls = [];
+        if (Array.isArray(req.files?.images)) {
+            for (const file of req.files.images) {
+                const imgOptimizada = await imagenOptimizada(file.path);
+                imagenUrls.push(imgOptimizada);
+            }
+        }
+       
+        const newProduct = await createProduct({
+            nombre,
+            descripcion,
+            precio,
+            imagen_url: imagenOptimizadaUrl,
+            subcategoria_id,
+            marca,
+            estado,
+            visible,
+            imagenUrls
+        });
+
+        return res.status(201).json({ msg: 'Producto creado correctamente', newProduct, imagenUrls});
 
     } catch (error) {
         console.error(error);

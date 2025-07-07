@@ -20,16 +20,20 @@ export const getStockId = async (req, res) => {
 
 export const addStock = async (req, res) => {
    
-    const { productId } = req.params;
+    const { product_id } = req.params;
     const { cantidad } = req.body;
 
     try {
-        const stockActualizado = await addStockProduct(productId, cantidad);
 
-        if (!stockActualizado || isNaN(cantidad || cantidad <= 0)) {
-            return res.status(400).json({ msg: 'La cantidad debe ser un numero mayor a 0'});
+        if (!cantidad || isNaN(cantidad) || Number(cantidad) <= 0) {
+            return res.status(400).json({ msg: 'La cantidad debe ser un número mayor a 0.' });
         }
 
+        if (!product_id || isNaN(product_id)) {
+            return res.status(400).json({ msg: 'ID del producto invalido.'});
+        }
+
+        const stockActualizado = await addStockProduct({product_id, cantidad});
         return res.status(200).json({ msg: 'Stock actualizado correctamente.', stock: stockActualizado});
 
     } catch (error) {

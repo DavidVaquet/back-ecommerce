@@ -4,7 +4,7 @@ import { addStock, getStockId, reduceStock } from '../controllers/StockControlle
 const router = express.Router();
 
 router.get('/getStock/:id', getStockId);
-router.patch('/addStock/:productId', addStock);
+router.patch('/addStock/:product_id', addStock);
 router.patch('/reduceStock/:productId', reduceStock);
 
 

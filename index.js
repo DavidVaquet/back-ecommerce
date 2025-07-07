@@ -6,6 +6,10 @@ import productRoutes from './routes/productRoutes.js';
 import stockRoutes from './routes/stockRoutes.js';
 import categoriesRoutes from './routes/categoriesRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import subcategoriesRoutes from './routes/subcategoriesRoutes.js';
+import ventasRoutes from './routes/ventasRoutes.js';
+import clientesRoutes from './routes/clientesRoutes.js';
+import jwt from 'jsonwebtoken';
 
 const app = express();
 dotenv.config();
@@ -20,7 +24,14 @@ app.use(express.json());
 app.use('/api/products', productRoutes);
 app.use('/api/stock', stockRoutes);
 app.use('/api/categories', categoriesRoutes);
+app.use('/api/subcategories', subcategoriesRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/ventas', ventasRoutes);
+app.use('/api/clientes', clientesRoutes);
+app.get('/generate-test-token', (req, res) => {
+  const token = jwt.sign({ id: 1, rol: 'admin' }, process.env.JWT_PASSWORD, { expiresIn: '30d' });
+  res.json({ token });
+});
 
 app.listen(process.env.PORT, () => {
     console.log('Servidor corriendo en el puerto', process.env.PORT);

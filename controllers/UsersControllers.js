@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 
 export const newUser = async (req, res) => {
 
-    const {nombre, email, password, rol} = req.body;
+    const {nombre, email, password, rol, activo} = req.body;
 
     if (!nombre || !email || !password) {
         return res.status(400).json({ msg: 'Nombre, email y password son obligatorios.' });
@@ -18,7 +18,7 @@ export const newUser = async (req, res) => {
 
         const passwordHash = await bcrypt.hash(password, 10);
 
-        const nuevoUsuario = await createUser(nombre, email, passwordHash, rol);
+        const nuevoUsuario = await createUser({nombre, email, passwordHash, rol, activo});
         delete nuevoUsuario.password;
 
         return res.status(201).json({
@@ -46,7 +46,7 @@ export const loginUsuario = async (req, res) => {
         
         const usuario = await findUserByEmail(email);
         if (!usuario) {
-            return res.status(404).json({ msg: 'Usuario no encontrado' })
+            return res.status(404).json({ msg: 'Usuario no encontrado.' })
         };
 
         const passwordValido = await bcrypt.compare(password, usuario.password);

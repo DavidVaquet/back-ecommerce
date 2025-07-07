@@ -10,7 +10,7 @@ export const getCategories = async (req, res) => {
             return res.status(404).json({ msg: 'La categoria no existe'});
         }
 
-        return res.status(200).json({ msg: 'Categorias obtenidas correctamente', categories});
+        return res.json(categories);
     } catch (error) {
         console.error(error);
         return res.status(500).json({ msg: 'Error al obtener las categorias'} );
@@ -20,7 +20,11 @@ export const getCategories = async (req, res) => {
 
 export const newCategory = async (req, res) => {
 
-    const { nombre, descripcion } = req.body;
+    const { nombre, descripcion, activo } = req.body;
+
+    if (!nombre || !activo) {
+        return res.status(401).json({error: 'Todos los campos son obligatorios.'})
+    };
 
     try {
         
@@ -30,7 +34,7 @@ export const newCategory = async (req, res) => {
             return res.status(400).json({ msg: 'Ya existe una categoria con ese nombre' });
         };
 
-        const nuevaCategoria = await createCategory(nombre, descripcion);
+        const nuevaCategoria = await createCategory({nombre, descripcion, activo});
 
         return res.status(200).json({ msg: 'Categoria creada exitosamente', categoria: nuevaCategoria});
 

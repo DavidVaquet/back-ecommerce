@@ -8,10 +8,10 @@ export const getAllCategories = async () => {
 
 };
 
-export const createCategory = async (nombre, descripcion) => {
+export const createCategory = async ({nombre, descripcion, activo = true}) => {
 
-    const query = `INSERT INTO categories (nombre, descripcion) VALUES ($1, $2) RETURNING *;`;
-    const values = [nombre, descripcion];
+    const query = `INSERT INTO categories (nombre, descripcion, activo) VALUES ($1, $2, $3) RETURNING *;`;
+    const values = [nombre, descripcion, activo];
 
     const result = await pool.query(query, values);
     return result.rows[0];
