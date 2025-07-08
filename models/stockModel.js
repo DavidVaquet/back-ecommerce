@@ -6,7 +6,7 @@ export const getStockProductId = async (client, product_id) => {
     const query = `SELECT cantidad FROM stock WHERE product_id = $1`;
     const values = [product_id];
 
-    const result = await pool.query(query, values);
+    const result = await client.query(query, values);
     return result.rows[0];
 
 };
@@ -33,9 +33,8 @@ export const addStockProduct = async ({product_id, cantidad}) => {
 };
 
 
-export const reduceStockProduct = async (client, product_id, cantidad) => {
-
-    const result = await pool.query(`SELECT * FROM stock WHERE product_id = $1`, [product_id]);
+export const reduceStockProduct = async ({client, product_id, cantidad}) => {
+    const result = await client.query(`SELECT cantidad FROM stock WHERE product_id = $1`, [product_id]);
 
     if (result.rows.length === 0) {
         throw new Error('No existe stock para este producto');

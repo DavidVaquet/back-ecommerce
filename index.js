@@ -10,6 +10,7 @@ import subcategoriesRoutes from './routes/subcategoriesRoutes.js';
 import ventasRoutes from './routes/ventasRoutes.js';
 import clientesRoutes from './routes/clientesRoutes.js';
 import jwt from 'jsonwebtoken';
+import path from 'path';
 
 const app = express();
 dotenv.config();
@@ -20,7 +21,7 @@ app.use(cors());
 app.use(express.json());
 
 // Rutas
-
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use('/api/products', productRoutes);
 app.use('/api/stock', stockRoutes);
 app.use('/api/categories', categoriesRoutes);

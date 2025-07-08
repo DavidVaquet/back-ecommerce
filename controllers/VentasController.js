@@ -21,15 +21,14 @@ export const registrarVenta = async (req, res) => {
         const ventaId = await crearVenta({client, medio_pago, total, canal, cliente_id});
 
         for (const prod of productos) {
-            
             const stock = await getStockProductId(client, prod.producto_id);
 
             if (stock < prod.cantidad) {
                 throw new Error(`Stock insuficiente para el producto ${prod.producto_id}`);
             }
 
-            await insertarVentaDetalle({client, ventaId, prod});
-            await reduceStockProduct({client, product_id: prod.product_id, cantidad: prod.cantidad});
+            await insertarVentaDetalle({client, venta_id: ventaId, producto:prod});
+            await reduceStockProduct({client, product_id: prod.producto_id, cantidad: prod.cantidad});
 
         }
 

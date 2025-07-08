@@ -8,7 +8,7 @@ router.post('/newProduct', upload.fields([
     { name: 'image', maxCount: 1},
     { name: 'images', maxCount: 3}
 ]), verifyToken, addProduct);
-router.get('/getAllProducts', getProducts);
+router.get('/getProducts', verifyToken, getProducts);
 router.put('/editProduct/:id', editProducts);
 router.put('/deleteProduct/:id', deleteProduct);
 

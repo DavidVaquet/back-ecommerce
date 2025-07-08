@@ -32,7 +32,27 @@ export const createProduct = async ({nombre, descripcion, precio, imagen_url, su
 
 export const getAllProducts = async () => {
 
-    const result = await pool.query(`SELECT * FROM products ORDER BY id asc`);
+    const result = await pool.query(`SELECT 
+         p.*,
+         COALESCE(s.cantidad, 0) as cantidad,
+         COALESCE(array_agg(pimg.imagenes_url) FILTER (WHERE pimg.imagenes_url IS NOT NULL), '{}') AS imagenes,
+         ct.nombre AS categoria_nombre,
+         ct.id AS categoria_id,
+         sb.id AS subcategoria_id,
+         sb.nombre AS subcategoria_nombre
+         FROM products AS p
+         LEFT JOIN stock AS s ON p.id = s.product_id
+         LEFT JOIN product_images AS pimg ON p.id = pimg.product_id
+         JOIN subcategories AS sb ON p.subcategoria_id = sb.id
+         JOIN categories AS ct ON sb.categoria_id = ct.id
+         GROUP BY 
+         p.id, 
+         s.cantidad, 
+         ct.nombre, 
+         ct.id, 
+         sb.id, 
+         sb.nombre
+         ORDER BY p.id DESC`);
     return result.rows;
 };
 
