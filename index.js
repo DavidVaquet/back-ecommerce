@@ -3,17 +3,22 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import pool from './config/db.js';
 import productRoutes from './routes/productRoutes.js';
-import stockRoutes from './routes/stockRoutes.js';
 import categoriesRoutes from './routes/categoriesRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import subcategoriesRoutes from './routes/subcategoriesRoutes.js';
 import ventasRoutes from './routes/ventasRoutes.js';
 import clientesRoutes from './routes/clientesRoutes.js';
+import recibosRoutes from './routes/recibosRoutes.js';
+import impresoraRoutes from './routes/impresoraRoutes.js'
+import stockRoutes from './routes/stockRoutes.js';
 import jwt from 'jsonwebtoken';
 import path from 'path';
 
 const app = express();
 dotenv.config();
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Middlewares
 
@@ -22,6 +27,7 @@ app.use(express.json());
 
 // Rutas
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+app.use('/public', express.static(path.join(__dirname, 'public')));
 app.use('/api/products', productRoutes);
 app.use('/api/stock', stockRoutes);
 app.use('/api/categories', categoriesRoutes);
@@ -29,6 +35,8 @@ app.use('/api/subcategories', subcategoriesRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/ventas', ventasRoutes);
 app.use('/api/clientes', clientesRoutes);
+app.use('/api/recibos', recibosRoutes);
+app.use('/api/impresora', impresoraRoutes);
 app.get('/generate-test-token', (req, res) => {
   const token = jwt.sign({ id: 1, rol: 'admin' }, process.env.JWT_PASSWORD, { expiresIn: '30d' });
   res.json({ token });

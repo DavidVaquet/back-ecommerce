@@ -1,4 +1,5 @@
 import { getAllCategories, findCategoryByName, createCategory, updateCategory, toggleCategoryState } from "../models/categoriesModel.js";
+import { activityRecent } from "./UsersControllers.js";
 
 
 export const getCategories = async (req, res) => {
@@ -35,11 +36,13 @@ export const newCategory = async (req, res) => {
         };
 
         const nuevaCategoria = await createCategory({nombre, descripcion, activo});
+        await activityRecent(req, {estado: 'Exitoso', accion: 'Creo una categoría.'});
 
         return res.status(200).json({ msg: 'Categoria creada exitosamente', categoria: nuevaCategoria});
 
     } catch (error) {
         console.error(error);
+        await activityRecent(req, {estado: 'Fallido', accion: 'Fallo al crear la categoría.'});
         return res.status(500).json({ msg: 'Error al crear la categoria.'});
     }
 };
@@ -65,11 +68,13 @@ export const editCategory = async (req, res) => {
         if (!categoriaActualizada) {
             return res.status(400).json({ msg: 'Categoria no encontrada'});
         };
+        await activityRecent(req, {estado: 'Exitoso', accion: 'Modifico una categoría.'});
 
         return res.status(200).json({ msg: 'Categoria actualizada correctamente', categoriaActualizada});
 
     } catch (error) {
         console.error(error);
+        await activityRecent(req, {estado: 'Fallido', accion: 'Falló al modificar una categoría.'});
         return res.status(500).json({ msg: 'Error al actualizar la categoria'});
     }
 };
@@ -91,10 +96,11 @@ export const categoryState = async (req, res) => {
         if (!updateCategory) {
             return res.status(404).json({ msg: 'Categoria no encontrada.'});
         }
-
+        await activityRecent(req, {estado: 'Exitoso', accion: 'Modifico una categoría.'});
         return res.status(200).json({ msg: 'El estado de la categoria fue actualizado exitosamente.', updateCategoryState});
     } catch (error) {
         console.error(error);
+        await activityRecent(req, {estado: 'Fallido', accion: 'Falló al modificar una categoría.'});
         return res.status(500).json({ msg: 'Error al actualizar el estado de la categoria.'});
     }
 };
