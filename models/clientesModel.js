@@ -86,8 +86,8 @@ export const obtenerClientesCompras = async () => {
                     MAX(v.fecha) AS fecha_ultima_compra
                     FROM clientes AS c
                     LEFT JOIN ventas AS v ON c.id = v.cliente_id
-                    GROUP BY
-                    c.id;`;
+                    GROUP BY c.id 
+                    ORDER BY c.id DESC;`;
     
     const result = await pool.query(query);
     return result.rows;

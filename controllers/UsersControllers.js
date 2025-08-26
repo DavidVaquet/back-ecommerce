@@ -97,7 +97,7 @@ export const loginUsuario = async (req, res) => {
     };
 
     const token = jwt.sign(payload, process.env.JWT_PASSWORD, {
-      expiresIn: "30d",
+      expiresIn: "1d",
     });
 
     delete usuario.password;

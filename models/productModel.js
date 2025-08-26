@@ -15,11 +15,13 @@ export const createProduct = async (
     destacado,
     descripcion_corta,
     barcode,
+    precio_costo
   }
 ) => {
   const query = `
-    INSERT INTO products (nombre, descripcion, precio, imagen_url, subcategoria_id, estado, marca, publicado, destacado, descripcion_corta, barcode)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    INSERT INTO products (nombre, descripcion, precio, imagen_url, subcategoria_id,
+     estado, marca, publicado, destacado, descripcion_corta, barcode, precio_costo)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     RETURNING *;    `;
 
   const values = [
@@ -34,6 +36,7 @@ export const createProduct = async (
     destacado,
     descripcion_corta,
     barcode,
+    precio_costo
   ];
 
   const result = await client.query(query, values);
@@ -122,7 +125,8 @@ export const updateProductAndStock = async ({
   precio,
   subcategoria_id,
   marca,
-  cantidad_stock,
+  precio_costo,
+  descripcion_corta
 }) => {
   const client = await pool.connect();
   try {
@@ -134,26 +138,22 @@ export const updateProductAndStock = async ({
         descripcion = $2,
         precio = $3,
         subcategoria_id = $4,
-        marca = $5
-        WHERE id = $6
+        marca = $5,
+        precio_costo = $6,
+        descripcion_corta = $7
+        WHERE id = $8
         RETURNING *;`;
 
-    const values = [nombre, descripcion, precio, subcategoria_id, marca, id];
+    const values = [nombre, descripcion, precio, subcategoria_id, marca, precio_costo, descripcion_corta, id];
 
-    const result = await client.query(query, values);
-    const productoActualizado = result.rows[0];
-
-    if (typeof cantidad_stock === "number") {
-      const queryStock = `INSERT INTO stock (product_id, cantidad) VALUES ($1, $2)
-            ON CONFLICT (product_id)
-            DO UPDATE SET cantidad = EXCLUDED.cantidad`;
-      const values = [id, cantidad_stock];
-      await client.query(queryStock, values);
-    }
-
+    const { rows } = await client.query(query, values);
     await client.query("COMMIT");
-    console.log("Producto actualizado:", productoActualizado);
-    return productoActualizado;
+
+    return rows[0];
+
+
+    // console.log("Producto actualizado:", productoActualizado);
+    // return productoActualizado;
   } catch (error) {
     await client.query("ROLLBACK");
     console.error(error);
@@ -185,7 +185,8 @@ export const getProductsComplete = async () => {
     JOIN subcategories AS sb ON p.subcategoria_id = sb.id
     JOIN categories AS c ON sb.categoria_id = c.id
     LEFT JOIN ventas_detalle AS vt ON p.id = vt.producto_id
-    GROUP BY p.id, s.cantidad, c.nombre`;
+    GROUP BY p.id, s.cantidad, c.nombre 
+    ORDER BY p.id DESC`;
 
   const result = await pool.query(query);
 
@@ -234,3 +235,16 @@ export const obtenerInformacionPrintUSB = async (productId) => {
 
   return result.rows[0];
 };
+
+export const eliminarProduct = async (id) => {
+
+  const query = `
+  DELETE FROM products WHERE id = $1
+  RETURNING *;`;
+
+  const values = [id];
+
+  const { rowCount } = await pool.query(query, values);
+
+  return rowCount;
+}

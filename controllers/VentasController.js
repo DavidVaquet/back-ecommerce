@@ -4,6 +4,7 @@ import { crearVenta, getVentasConDetalles } from '../models/ventasModel.js';
 // import { getStockProductId } from '../models/stockModel.js';
 import { insertarVentaDetalle } from '../models/ventasDetalle.js';
 import { addStockMovement, applyStockDelta, getStockProductIdForUpdate, movementType } from '../models/stockModel.js';
+import { activityRecent } from './UsersControllers.js';
 // import { reduceStockProduct } from '../models/stockModel.js';
 
 export const registrarVenta = async (req, res) => {

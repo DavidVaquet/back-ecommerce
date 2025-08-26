@@ -1,4 +1,4 @@
-import { createProduct, getAllProducts, deleteProduct as deleteProductModel, getProductsComplete, updateProductAndStock, activarProduct, getProductsCantidadMinima, publicarProductos } from "../models/productModel.js";
+import { createProduct, getAllProducts, deleteProduct as deleteProductModel, getProductsComplete, updateProductAndStock, activarProduct, getProductsCantidadMinima, publicarProductos, eliminarProduct } from "../models/productModel.js";
 import { addStockMovement, ensureStockRow, movementType } from "../models/stockModel.js";
 import { applyStockDelta } from "../models/stockModel.js";
 import { getStockProductIdForUpdate } from "../models/stockModel.js";
@@ -24,10 +24,12 @@ export const addProduct = async (req, res) => {
                destacado, 
                descripcion_corta, 
                cantidad, 
-               cantidad_minima} = req.body
+               cantidad_minima,
+               precio_costo  } = req.body
+        console.log(req.body);
         
-        if (!nombre || !precio || !subcategoria_id ) {
-            return res.status(400).json({ error: 'Todos los campos son obligatorios'});
+        if (!nombre || !precio || !subcategoria_id || !precio_costo ) {
+            return res.status(400).json({ error: 'Campos obligatorios: nombre, precio, subcategoria, precio costo.'});
         };
 
         const imagenPrincipal = req.files?.image?.[0];
@@ -60,9 +62,10 @@ export const addProduct = async (req, res) => {
             destacado,
             imagenUrls,
             descripcion_corta,
-            barcode
+            barcode,
+            precio_costo
         });
-        // console.log('newProduct=', newProduct);
+        
 
         const productId = newProduct.producto.id;
 
@@ -157,15 +160,15 @@ export const getProducts = async (req, res) => {
 export const editProducts = async (req, res) => {
 
     const { id } = req.params;
-    const {nombre, descripcion, precio, subcategoria_id, marca, cantidad_stock} = req.body;
-    console.log("Datos recibidos:", req.body);
+    const {nombre, descripcion, precio, subcategoria_id, marca, precio_costo, descripcion_corta} = req.body;
+    // console.log("Datos recibidos:", req.body);
 
-    if (!nombre?.trim() || typeof precio !== "number" || typeof subcategoria_id !== 'number' || isNaN(subcategoria_id) || typeof cantidad_stock !== 'number') {
-        return res.status(400).json({ error: 'Debes insertar los campos: nombre, precio, subcategoria_id, cantidad_stock' });
+    if (!nombre?.trim() || typeof precio !== "number" || typeof subcategoria_id !== 'number' || isNaN(subcategoria_id) || typeof precio_costo !== "number") {
+        return res.status(400).json({ error: 'Debes insertar los campos: nombre, precio, subcategoria_id' });
       }
 
       try {
-        const productUpdated = await updateProductAndStock({id, nombre, descripcion, precio, subcategoria_id, marca, cantidad_stock});
+        const productUpdated = await updateProductAndStock({id, nombre, descripcion, precio, subcategoria_id, marca, precio_costo, descripcion_corta});
         if ( !productUpdated ) {
             return res.status(400).json({ error: 'Producto no encontrado' });
 
@@ -265,4 +268,47 @@ export const publicarProducto = async (req, res) => {
         await activityRecent(req, {estado: 'Fallido', accion: 'Falló al publicar un producto.'});
         return res.status(500).json({ msg: 'Error al publicar los productos.'})
     }
+};
+
+export const eliminarProducto = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const deletedCount = await eliminarProduct(id);
+
+    if (deletedCount === 0) {
+      return res.status(404).json({ msg: 'No se encontró ningún producto.' });
+    }
+
+    return res.status(200).json({ ok: true, msg: 'Producto eliminado exitosamente' });
+  } catch (e) {
+    console.error('eliminarProducto error:', e);
+
+    if (e.code === '23503') {
+      return res.status(409).json({
+        msg: 'Producto con ventas asociadas. Solo puedes desactivarlo.'
+      });
+    }
+
+    return res.status(500).json({ msg: 'Error eliminando producto.' });
+  }
+};
+
+
+export const getByBarcode = async (req, res) => {
+  try {
+    const code = String(req.params.code || "").trim();
+    if (!code) return res.status(400).json({ msg: "Código inválido" });
+
+    const { rows } = await pool.query(
+      "SELECT * FROM products WHERE barcode = $1 LIMIT 1",
+      [code]
+    );
+
+    if (!rows.length) return res.status(404).json({ msg: "No encontrado" });
+    res.json(rows[0]);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ msg: "Error buscando por barcode" });
+  }
 };

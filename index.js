@@ -11,6 +11,7 @@ import clientesRoutes from './routes/clientesRoutes.js';
 import recibosRoutes from './routes/recibosRoutes.js';
 import impresoraRoutes from './routes/impresoraRoutes.js'
 import stockRoutes from './routes/stockRoutes.js';
+import estadisticasRoutes from './routes/estadisticasRoutes.js';
 import jwt from 'jsonwebtoken';
 import path from 'path';
 
@@ -22,7 +23,11 @@ const __dirname = path.dirname(__filename);
 
 // Middlewares
 
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:5173',
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+}));
 app.use(express.json());
 
 // Rutas
@@ -37,6 +42,7 @@ app.use('/api/ventas', ventasRoutes);
 app.use('/api/clientes', clientesRoutes);
 app.use('/api/recibos', recibosRoutes);
 app.use('/api/impresora', impresoraRoutes);
+app.use('/api/estadisticas', estadisticasRoutes);
 app.get('/generate-test-token', (req, res) => {
   const token = jwt.sign({ id: 1, rol: 'admin' }, process.env.JWT_PASSWORD, { expiresIn: '30d' });
   res.json({ token });
