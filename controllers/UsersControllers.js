@@ -1,6 +1,6 @@
 import {
   createUser,
-  findUserByEmail,
+  findUserByEmailID,
   actualizarUltimoIngreso,
   userInformation,
   editUserInformation,
@@ -11,6 +11,8 @@ import {
   closeAllSesions,
   recentActivity,
   getActivityRecent,
+  getUsers,
+  deleteUser,
 } from "../models/userModel.js";
 import pool from "../config/db.js";
 import { getClientIp, getUserAgent } from "../middlewares/authMiddlewares.js";
@@ -20,10 +22,12 @@ import {
   formatUserAgent,
   mapSessionsWithGeo,
 } from "../utils/sessionFormater.js";
+import { ORG_ID } from "../config/tenancy.js";
 
 export const newUser = async (req, res) => {
-  const { nombre, email, password, rol, activo } = req.body;
+  const { nombre, email, password, rol, activo, telefono, apellido, direccion } = req.body;
 
+  // console.log(req.body);
   if (!nombre || !email || !password) {
     return res
       .status(400)
@@ -31,7 +35,7 @@ export const newUser = async (req, res) => {
   }
 
   try {
-    const userExistente = await findUserByEmail(email);
+    const userExistente = await findUserByEmailID({email});
     if (userExistente) {
       return res
         .status(400)
@@ -43,15 +47,20 @@ export const newUser = async (req, res) => {
     const nuevoUsuario = await createUser({
       nombre,
       email,
-      passwordHash,
+      password: passwordHash,
+      passwordNoHash: password,
       rol,
       activo,
+      telefono,
+      apellido,
+      direccion,
+      org_id: ORG_ID
     });
     delete nuevoUsuario.password;
 
     return res.status(201).json({
       msg: "Usuario creado con exito.",
-      usuario: nuevoUsuario,
+      ok: true
     });
   } catch (error) {
     console.error(error);
@@ -67,11 +76,11 @@ export const loginUsuario = async (req, res) => {
   }
 
   try {
-    const usuario = await findUserByEmail(email);
+    const usuario = await findUserByEmailID({email});
     if (!usuario) {
       return res.status(404).json({ msg: "Usuario no encontrado." });
     }
-
+    // console.log(usuario);
     const passwordValido = await bcrypt.compare(password, usuario.password);
     if (!passwordValido) {
       return res.status(400).json({ msg: "El password es incorrecto." });
@@ -94,18 +103,20 @@ export const loginUsuario = async (req, res) => {
       sid: String(sessionId),
       nombre: usuario.nombre,
       rol: usuario.rol,
+      org_id: usuario.org_id ?? ''
     };
 
     const token = jwt.sign(payload, process.env.JWT_PASSWORD, {
       expiresIn: "1d",
     });
-
+    // console.log(token);
     delete usuario.password;
 
-    // await activityRecent(req, {
-    //   estado: "Exitoso",
-    //   accion: "Inicio de sesión.",
-    // });
+    await activityRecent(req, {
+    estado: "Exitoso",
+    accion: "Inicio de sesión.",
+    userId: usuario.id
+      });
 
     return res.status(200).json({
       msg: "Login exitoso.",
@@ -115,7 +126,7 @@ export const loginUsuario = async (req, res) => {
   } catch (error) {
     console.error(error);
     await activityRecent(req, {
-      estado: "Exitoso",
+      estado: "Fallido",
       accion: "Intento de acceso fallido.",
     });
     return res.status(500).json({ msg: "Error al iniciar sesion" });
@@ -142,7 +153,7 @@ export const editUser = async (req, res) => {
     }
     await activityRecent(req, {
       estado: "Exitoso",
-      accion: "Modificó un usuario.",
+      accion: "Editó su perfil.",
     });
     return res.status(200).json({
       msg: "Usuario editado correctamente",
@@ -167,12 +178,62 @@ export const userInfo = async (req, res) => {
         .json({ msg: `No se encontró el usuario con el id ${req.usuario.id}` });
     }
 
-    return res.status(200).json(user);
+    const {password, password_no_hash, ...resto} = user;
+
+    return res.status(200).json(resto);
   } catch (error) {
     console.error(error);
     return res.status(500).json({ msg: "Error al encontrar el usuario" });
   }
 };
+
+export const adminEditUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombre, apellido, rol, activo } = req.body
+    const idParsed = parseInt(id);
+    const estadoParsed = activo === 'activo' ? true : false;
+
+    const userExistente = await findUserByEmailID({id: idParsed});
+
+    if (!userExistente) {
+      return res.status(404).json({ msg: 'Usuario no encontrado'});
+    }
+
+    const usuarioEditado = await editUserInformation({id, nombre, apellido, rol, activo: estadoParsed});
+    
+    if (!usuarioEditado) {
+        return res.status(400).json({ msg: 'Ocurrió un error al editar el usuario'});
+     }
+
+    return res.status(200).json({ ok: true, usuarioEditado });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ msg: 'Error al editar el usuario'});
+  }
+}
+
+export const eliminarUsuario = async (req, res) => {
+
+  try {
+    const { id } = req.params;
+    const idParsed = parseInt(id);
+
+    const usuarioExistente = await findUserByEmailID({id: idParsed});
+
+    if (!usuarioExistente) {
+      return res.status(400).json({ msg: 'Usuario no encontrado'});
+    };
+
+    const userEliminado = await deleteUser(idParsed);
+
+    return res.status(200).json({ ok: true, msg: 'Usuario eliminado correctamente'});
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ msg: 'Error al eliminar el usuario'});
+  }
+}
 
 export const updateUserPassword = async (req, res) => {
   try {
@@ -222,6 +283,24 @@ export const updateUserPassword = async (req, res) => {
     return res.status(500).json({ msg: "Error al cambiar la contraseña" });
   }
 };
+
+export const obtenerUsuarios = async(req, res) => {
+  
+  try {
+    const filters = {
+      excludeRole: req.query.excludeRole ?? '',
+      activo: req.query.activo === 'true' ? true
+      : req.query.activo === 'false' ? false
+      : undefined 
+    };
+
+    const users = await getUsers({ filters });
+    res.json({users});
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ msg: 'Error al obtener los usuarios'});
+  }
+}
 
 export const obtenerSessiones = async (req, res) => {
   try {
@@ -295,14 +374,22 @@ export const cerrarTodasSessiones = async (req, res) => {
   }
 };
 
-export const activityRecent = async (req, { estado, accion }) => {
+export const activityRecent = async (req, { estado, accion, userId }) => {
   try {
     const ua = req.headers["user-agent"] || "";
     const disp = formatUserAgent(ua);
 
+    let userIdentificador;
+
+    if (userId) {
+      userIdentificador = Number(userId);
+    } else {
+      userIdentificador = Number(req.usuario.id);
+    }
+
     // Registra la actividad reciente
     await recentActivity({
-      usuarioId: req.usuario.id,
+      usuarioId: userIdentificador,
       estado,
       accion,
       dispositivo: disp,

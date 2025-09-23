@@ -1,10 +1,27 @@
 import pool from "../config/db.js";
 
 
-export const getAllCategories = async () => {
+export const getAllCategories = async ({ activo }) => {
 
-    const result = await pool.query(`SELECT * FROM categories ORDER BY id ASC`);
-    return result.rows;
+    const where = [];
+    const params = [];
+    let i = 1;
+
+    if (activo != null) {
+        where.push(`activo = $${i++}`);
+        params.push(activo);
+    }
+
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+    const sql = `
+        SELECT * FROM categories 
+        ${whereSql} 
+        ORDER BY id ASC`;
+
+    const { rows } = await pool.query(sql, params);
+
+    return rows;
 
 };
 

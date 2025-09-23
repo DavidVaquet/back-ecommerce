@@ -12,11 +12,14 @@ import recibosRoutes from './routes/recibosRoutes.js';
 import impresoraRoutes from './routes/impresoraRoutes.js'
 import stockRoutes from './routes/stockRoutes.js';
 import estadisticasRoutes from './routes/estadisticasRoutes.js';
+import reportesRoutes from './routes/reportesRoutes.js';
+import settingsRoutes from './routes/settingsRoutes.js';
 import jwt from 'jsonwebtoken';
 import path from 'path';
 
 const app = express();
 dotenv.config();
+
 import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,6 +32,17 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
 }));
 app.use(express.json());
+// app.use((req, res, next) => {
+//   const origJson = res.json.bind(res);
+//   res.json = (...args) => {
+//     if (res.headersSent) {
+//       console.warn('⚠️ DOUBLE SEND', req.method, req.originalUrl, new Error().stack);
+//       return;
+//     }
+//     return origJson(...args);
+//   };
+//   next();
+// });
 
 // Rutas
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
@@ -42,7 +56,9 @@ app.use('/api/ventas', ventasRoutes);
 app.use('/api/clientes', clientesRoutes);
 app.use('/api/recibos', recibosRoutes);
 app.use('/api/impresora', impresoraRoutes);
+app.use('/api/settings', settingsRoutes);
 app.use('/api/estadisticas', estadisticasRoutes);
+app.use('/api/reportes', reportesRoutes);
 app.get('/generate-test-token', (req, res) => {
   const token = jwt.sign({ id: 1, rol: 'admin' }, process.env.JWT_PASSWORD, { expiresIn: '30d' });
   res.json({ token });

@@ -29,7 +29,13 @@ export const addSubcategoria = async (req, res) => {
 
 export const getAllSubcategorias = async (req, res) => {
     try {
-        const subcategories = await getAllSubcategories();
+        let { activo } = req.query;
+        if (activo != null) {
+            activo = activo === 'true'
+        };
+
+        const subcategories = await getAllSubcategories({ activo });
+        
         return res.status(201).json(subcategories);
     } catch (error) {
         console.error(error);

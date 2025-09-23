@@ -41,19 +41,18 @@ export const estadisticasVentasHoy = async (req, res) => {
           ${canalWhere}
       ),
       items_hoy AS (
-        SELECT COALESCE(SUM(vi.cantidad),0)::int AS productos_vendidos
-        FROM ventas_detalle vi
-        LEFT JOIN ventas_filtradas vf ON vf.id = vi.venta_id
+        SELECT COALESCE(SUM(vi.cantidad), 0)::int AS productos_vendidos
+        FROM ventas_filtradas vf
+        LEFT JOIN ventas_detalle vi ON vi.venta_id = vf.id
       )
       SELECT
-        (SELECT COUNT(*)::int                 FROM ventas_filtradas)   AS ventas_hoy,
-        (SELECT COALESCE(SUM(vf.total), 0.0)  FROM ventas_filtradas vf) AS total_ventas_hoy,
-        (SELECT productos_vendidos FROM items_hoy)                      AS productos_vendidos;
+        (SELECT COUNT(*)::int FROM ventas_filtradas) AS ventas_hoy,
+        (SELECT COALESCE(SUM(total), 0)::numeric FROM ventas_filtradas) AS total_ventas_hoy,
+        (SELECT productos_vendidos FROM items_hoy) AS productos_vendidos;
     `;
 
     const { rows } = await pool.query(sql, params);
     const r = rows[0] || { ventas_hoy: 0, total_ventas_hoy: 0, productos_vendidos: 0 };
-
     
     const metaVentas = 1000000;
     const progresoMeta = metaVentas > 0 ? (Number(r.total_ventas_hoy) / metaVentas) * 100 : 0;

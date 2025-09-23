@@ -1,10 +1,10 @@
 import pool from "../config/db.js";
 
-export const crearVenta = async ({client, canal, medio_pago, total, cliente_id, usuarioId, descuento, subtotal, impuestos}) => {
+export const crearVenta = async ({client, canal, medio_pago, total, cliente_id, usuarioId, descuento, subtotal, impuestos, currency, descuento_porcentaje, impuestos_porcentaje}) => {
 
-    const query = `INSERT INTO ventas (canal, medio_pago, total, cliente_id, usuario_id, descuento, subtotal, impuestos) 
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;`
-    const values = [canal, medio_pago, total, cliente_id, usuarioId, descuento, subtotal, impuestos];
+    const query = `INSERT INTO ventas (canal, medio_pago, total, cliente_id, usuario_id, descuento, subtotal, impuestos, currency, descuento_porcentaje, impuestos_porcentaje) 
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *;`
+    const values = [canal, medio_pago, total, cliente_id, usuarioId, descuento, subtotal, impuestos, currency, descuento_porcentaje, impuestos_porcentaje];
 
     const result = await client.query(query, values);
     const ventaId = result.rows[0].id;

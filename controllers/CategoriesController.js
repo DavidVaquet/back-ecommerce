@@ -5,7 +5,12 @@ import { activityRecent } from "./UsersControllers.js";
 export const getCategories = async (req, res) => {
 
     try {
-        const categories = await getAllCategories();
+        let { activo } = req.query;
+        if (activo != null) {
+            activo = activo === 'true'
+        };
+        
+        const categories = await getAllCategories({activo});
 
         if (!categories) {
             return res.status(404).json({ msg: 'La categoria no existe'});
@@ -52,8 +57,8 @@ export const editCategory = async (req, res) => {
     const { id } = req.params;
     const { nombre, descripcion } = req.body;
 
-    if (!nombre || !descripcion) {
-        return res.status(400).json({ msg: 'El nombre y la descripcion son obligatorios.' });
+    if (!nombre || nombre.trim() === '') {
+        return res.status(400).json({ msg: 'El nombre es obligatorio.' });
     };
 
     try {
@@ -87,7 +92,7 @@ export const categoryState = async (req, res) => {
     const { id } = req.params;
     const { activo } = req.body;
 
-    if (activo === undefined) {
+    if (!activo) {
         return res.status(404).json({ msg: 'Debes definir un estado para la categoria'} );
     }
     try {

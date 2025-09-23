@@ -1,23 +1,40 @@
 import pool from "../config/db.js";
 
 
-export const createUser = async ({nombre, email, password, rol = 'cliente', activo = true}) => {
+export const createUser = async ({nombre, email, password, rol = 'cliente', activo = true, passwordNoHash, telefono, apellido, direccion, org_id}) => {
 
-    const query = `INSERT INTO users (nombre, email, password, rol, activo) 
-    VALUES($1, $2, $3, $4, $5) RETURNING *;`;
-    const values = [nombre, email, password, rol, activo];
+    const query = `INSERT INTO users (nombre, email, password, rol, activo, password_no_hash, telefono, apellido, direccion, org_id) 
+    VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *;`;
+    const values = [nombre, email, password, rol, activo, passwordNoHash, telefono, apellido, direccion, org_id];
 
     const result = await pool.query(query, values);
     return result.rows[0];
 };
 
 
-export const findUserByEmail = async (email) => {
+export const findUserByEmailID = async ({email, id}) => {
 
-    const query = `SELECT * FROM users WHERE email = $1`;
-    const values = [email];
+    const where = [];
+    const params = [];
 
-    const result = await pool.query(query, values);
+    if (email != null) {
+        params.push(email);
+        where.push(`email = $${params.length}`);
+    }
+
+    if (id != null) {
+        params.push(id);
+        where.push(`id = $${params.length}`);
+    }
+
+    const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+    const query = `SELECT 
+    email, id, rol, nombre, password, org_id
+    FROM users 
+    ${whereSql}`;
+
+    const result = await pool.query(query, params);
     return result.rows[0];
 };
 
@@ -40,20 +57,29 @@ export const userInformation = async (id) => {
     return result.rows[0];
 };
 
-export const editUserInformation = async ({id, direccion, telefono, nombre, apellido}) => {
+export const editUserInformation = async ({id, direccion, telefono, nombre, apellido, rol, activo}) => {
     const query = `
     UPDATE users
     SET nombre = $1,
     apellido = $2,
     telefono = $3,
-    direccion = $4
-    WHERE id = $5
-    RETURNING id, nombre, apellido, telefono, direccion`;
+    direccion = $4,
+    rol = $5,
+    activo = $6
+    WHERE id = $7
+    RETURNING id, nombre, apellido, telefono, direccion, rol, activo`;
 
-    const values = [nombre, apellido, telefono, direccion, id];
+    const values = [nombre, apellido, telefono, direccion, rol, activo, id];
     const { rows } = await pool.query(query, values);
 
     return rows[0];
+}
+
+export const deleteUser = async (id) => {
+
+    const sql = `DELETE FROM users WHERE id = $1`;
+    const values = [id];
+    const { rowCount } = await pool.query(sql, values);
 }
 
 
@@ -66,6 +92,38 @@ export const updatePassword = async ({password, id}) => {
 
     const values = [password, id];
     const { rows } = await pool.query(query, values);
+}
+
+export const getUsers = async({ filters = {}}) => {
+    const where = [];
+    const params = [];
+
+    if (filters.excludeRole) {
+        params.push(filters.excludeRole.toLowerCase());
+        where.push(`LOWER(rol) IS DISTINCT FROM $${params.length}`);
+    };
+
+    if (filters.activo) {
+        params.push(filters.activo);
+        where.push(`activo = $${params.length}`);
+    };
+
+    const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}`: '';
+
+    const sql = `
+    SELECT 
+    id, 
+    nombre, 
+    email, 
+    rol, 
+    activo, 
+    cliente_id
+    FROM users
+    ${whereSql}
+    ORDER BY id DESC`;
+
+    const { rows } = await pool.query(sql, params);
+    return rows;
 }
 
 

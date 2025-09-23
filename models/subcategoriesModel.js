@@ -10,9 +10,27 @@ export const newSubcategory = async ({nombre, descripcion, activo = true, catego
     return result.rows[0];
 };
 
-export const getAllSubcategories = async () => {
-    const result = await pool.query(`SELECT * FROM subcategories WHERE activo = true ORDER BY categoria_id, id ASC;`);
-    return result.rows;
+export const getAllSubcategories = async ({ activo }) => {
+    
+    const where = [];
+    const params = [];
+    let i = 1;
+
+    if (activo != null) {
+        where.push(`activo = $${i++}`);
+        params.push(activo);
+    }
+
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+
+    const sql = `
+         SELECT * FROM subcategories
+         ${whereSql}  
+         ORDER BY categoria_id, id ASC`;
+         
+    const { rows } = await pool.query(sql, params);
+    return rows;
 };
 
 export const findSubcategoryName = async (nombre) => {

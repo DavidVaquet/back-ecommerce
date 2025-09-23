@@ -1,4 +1,12 @@
-import { createProduct, getAllProducts, deleteProduct as deleteProductModel, getProductsComplete, updateProductAndStock, activarProduct, getProductsCantidadMinima, publicarProductos, eliminarProduct } from "../models/productModel.js";
+import { createProduct,
+        deleteProduct as deleteProductModel,
+        getProducts, 
+        updateProductAndStock, 
+        activarProduct, 
+        publicarProductos, 
+        eliminarProduct, 
+        statsProductos
+    } from "../models/productModel.js";
 import { addStockMovement, ensureStockRow, movementType } from "../models/stockModel.js";
 import { applyStockDelta } from "../models/stockModel.js";
 import { getStockProductIdForUpdate } from "../models/stockModel.js";
@@ -11,7 +19,7 @@ import { activityRecent } from "./UsersControllers.js";
 export const addProduct = async (req, res) => {
 
     const client = await pool.connect();
-
+    const settings = req.settings;
     try {
         
         const {nombre,
@@ -25,7 +33,8 @@ export const addProduct = async (req, res) => {
                descripcion_corta, 
                cantidad, 
                cantidad_minima,
-               precio_costo  } = req.body
+               precio_costo,
+               currency  } = req.body
         console.log(req.body);
         
         if (!nombre || !precio || !subcategoria_id || !precio_costo ) {
@@ -63,16 +72,19 @@ export const addProduct = async (req, res) => {
             imagenUrls,
             descripcion_corta,
             barcode,
-            precio_costo
+            precio_costo,
+            currency
         });
         
 
         const productId = newProduct.producto.id;
-
+        const cantidadMinimaGlobal = Number(settings?.inventory?.default_min_stock);
         const upserStock = await ensureStockRow(client, {
             product_id: productId,
             cantidad: 0,
-            cantidad_minima: Number(cantidad_minima) || 0
+            cantidad_minima: (cantidad_minima !== undefined && cantidad_minima !== null && cantidad_minima !== "")
+                                ? Number(cantidad_minima)
+                                : cantidadMinimaGlobal ?? 0
         });
 
         const locked = await getStockProductIdForUpdate(client, productId);
@@ -115,7 +127,7 @@ export const addProduct = async (req, res) => {
 
         await client.query('COMMIT');
 
-        const asd = await activityRecent(req, {estado: 'Exitoso', accion: 'Creó un producto.'});
+        const asd = await activityRecent(req, {estado: 'Exitoso', accion: `Creó el producto ${nombre}`});
         // console.log(asd);
         return res.status(201).json({ msg: 'Producto creado correctamente',
             newProduct, 
@@ -139,23 +151,6 @@ export const addProduct = async (req, res) => {
     }
 
 };
-
-
-export const getProducts = async (req, res) => {
-
-    try {
-    
-        const { publicado, estado, limite, stockBajo } = req.query;
-        const publicadoParseado = publicado !== undefined ? parseInt(publicado) : undefined;
-        const products = await getAllProducts({publicadoParseado, estado, limite, stockBajo});
-        res.status(200).json({ msg:'Productos obtenidos exitosamente', products });
-
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({error: 'Error al obtener todos los productos'})
-    }
-};
-
 
 export const editProducts = async (req, res) => {
 
@@ -231,7 +226,7 @@ export const activarProducto = async (req, res) => {
 export const getProductsCompletos = async (req, res) => {
 
     try {
-        const products = await getProductsComplete();
+        const products = await getProducts(req.query);
         return res.status(200).json(products)
     } catch (error) {
         console.error(error);
@@ -239,18 +234,15 @@ export const getProductsCompletos = async (req, res) => {
     }
 };
 
-export const getProductsCantidadMin = async (req, res) => {
+export const getStatsProductos = async (req, res) => {
     try {
-        const productosCantidadMin = await getProductsCantidadMinima();
-        if (!productosCantidadMin) {
-            return res.status(400).json({ msg: 'No hay productos con cantidad minima.'})
-        }
-        return res.status(200).json(productosCantidadMin);
+        const stats = await statsProductos(req.query);
+        res.json(stats);
     } catch (error) {
         console.error(error);
-        return res.status(500).json({ msg: 'Error al obtener los productos con cantidad minima'});
     }
 }
+
 
 export const publicarProducto = async (req, res) => {
     try {

@@ -13,16 +13,17 @@ export const verifyToken = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_PASSWORD);
     req.usuario = {
-      id: decoded.sub ? parseInt(decoded.sub, 10) : decoded.id,
+      id: decoded.sub ? parseInt(decoded.sub, 10) : parseInt(decoded.id),
       rol: decoded.rol,
       nombre: decoded.nombre,
-      raw: decoded,
+      raw: decoded
     };
-    // console.log(decoded);
+    console.log(decoded);
 
+    req.orgId = decoded.org_id;
     req.sessionId = decoded.sid || decoded.sessionId || null;
 
-    next();
+    return next();
   } catch (error) {
     console.error(error);
     return res.status(403).json({ msg: "Error al validar el token." });

@@ -28,17 +28,17 @@ export const crearCliente = async (req, res) => {
 export const clientesEstado = async (req, res) => {
     try {
         
-        const activo = req.query.activo;
+        let activo = req.query.activo;
 
-        const parsedActivo = Boolean(activo);
+        if (activo != null) {
+            activo = activo === 'true'
+        };
 
-        const clienteOn = await getClientesEstado(parsedActivo);
-        await activityRecent(req, {estado: 'Exitoso', accion: 'Modifico el estado de un cliente.'});
+        const clienteOn = await getClientesEstado(activo);
 
         return res.status(200).json(clienteOn)
     } catch (error) {
         console.error(error);
-        await activityRecent(req, {estado: 'Fallido', accion: 'Falló al estado de un cliente.'});
         return res.status(500).json({ msg: 'Error al obtener los clientes activos.'})
     }
 }
