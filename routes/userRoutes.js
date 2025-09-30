@@ -1,11 +1,14 @@
 import express from 'express';
-import { adminEditUser, eliminarUsuario, cerrarSession, cerrarTodasSessiones, editUser, getRecentActivity, getUsageStats, loginUsuario, newUser, obtenerSessiones, obtenerUsuarios, updateUserPassword, userInfo } from '../controllers/UsersControllers.js';
+import { adminEditUser, eliminarUsuario, cerrarSession, cerrarTodasSessiones, editUser, getRecentActivity, getUsageStats, loginUsuario, newUser, obtenerSessiones, obtenerUsuarios, updateUserPassword, userInfo, forgotPassword, resetPassword } from '../controllers/UsersControllers.js';
 import { verifyToken } from '../middlewares/authMiddlewares.js';
 
 const router = express.Router();
 
 router.post('/register', newUser);
 router.post('/login', loginUsuario);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password-recovery', resetPassword);
+
 router.get('/user-info', verifyToken, userInfo);
 router.get('/obtener-usuarios', verifyToken, obtenerUsuarios);
 router.get('/recent-activity', verifyToken, getRecentActivity);

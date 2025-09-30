@@ -1,6 +1,6 @@
 import express from 'express';
 import pool from '../config/db.js';
-import { crearVenta, getVentasConDetalles } from '../models/ventasModel.js';
+import { crearVenta, getVentasConDetalles, getVentasEstadisticas } from '../models/ventasModel.js';
 // import { getStockProductId } from '../models/stockModel.js';
 import { insertarVentaDetalle } from '../models/ventasDetalle.js';
 import { addStockMovement, applyStockDelta, getStockProductIdForUpdate, movementType } from '../models/stockModel.js';
@@ -159,7 +159,7 @@ export const registrarVenta = async (req, res) => {
             console.error('Error en rollback:', rollbackError);
         }
         
-        // Registrar actividad fallida
+        
         try {
             await activityRecent(req, {estado: 'Fallido', accion: 'Falló al registrar una venta.'});
         } catch (activityError) {
@@ -180,11 +180,21 @@ export const registrarVenta = async (req, res) => {
 
 export const obtenerVentasConDetallesCompletos = async (req, res) => {
     try {
-        const ventas = await getVentasConDetalles();
+        const ventas = await getVentasConDetalles(req.query);
         if (!ventas) return res.status(400).json({ msg: 'Error al obtener las ventas'})
         return res.status(200).json(ventas);
     } catch (error) {
         console.error(error);
         return res.status(500).json({msg: 'Error al obtener las ventas - 500'});
+    }
+}
+
+export const obtenerTotalesVentas = async (req, res) => {
+    try {
+        const ventas = await getVentasEstadisticas();
+        return res.json(ventas);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ msg: 'Error interno'});
     }
 }

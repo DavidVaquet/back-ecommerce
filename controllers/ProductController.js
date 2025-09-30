@@ -5,7 +5,8 @@ import { createProduct,
         activarProduct, 
         publicarProductos, 
         eliminarProduct, 
-        statsProductos
+        statsProductos,
+        findProductById
     } from "../models/productModel.js";
 import { addStockMovement, ensureStockRow, movementType } from "../models/stockModel.js";
 import { applyStockDelta } from "../models/stockModel.js";
@@ -292,10 +293,16 @@ export const getByBarcode = async (req, res) => {
     const code = String(req.params.code || "").trim();
     if (!code) return res.status(400).json({ msg: "Código inválido" });
 
-    const { rows } = await pool.query(
-      "SELECT * FROM products WHERE barcode = $1 LIMIT 1",
-      [code]
-    );
+    const { rows } = await pool.query(`
+        SELECT 
+            p.*,
+            COALESCE(s.cantidad, 0) AS cantidad,
+            COALESCE(s.cantidad_minima, 0) AS cantidad_minima
+        FROM products p
+        LEFT JOIN stock s ON s.product_id = p.id
+        WHERE lower(p.barcode) = lower($1)
+        LIMIT 1
+        `, [code]);
 
     if (!rows.length) return res.status(404).json({ msg: "No encontrado" });
     res.json(rows[0]);
@@ -304,3 +311,21 @@ export const getByBarcode = async (req, res) => {
     res.status(500).json({ msg: "Error buscando por barcode" });
   }
 };
+
+export const getProductId = async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+
+        if (Number.isNaN(id)) return res.status(400).json({ msg: 'Id inválido'});
+
+        const producto = await findProductById(id);
+
+        if (!producto) return res.status(400).json({ msg: `No se encontró un producto con el id: ${id}`})
+        
+        res.json(producto);
+
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ msg: 'Error interno'});
+    }
+}

@@ -128,64 +128,106 @@ export const getMovementsType = async () => {
 
 export const getAllMovementStock = async ({
   limite,
+  offset,
   fechaDesde,
   fechaHasta,
+  search,
+  tipo,
 } = {}) => {
-  let query = `
-    SELECT sm.id,
-     sm.product_id, 
-     sm.fecha AS fecha_creacion, 
-     sm.cantidad AS cantidad_movimiento,
-     sm.direction,
-     sm.stock_anterior,
-     sm.stock_actual,
-     sm.usuario_id,
-     sm.motivo,
-     sm.document,
-     sm.costo_unitario,
-     sm.metadata,
-     sm.created_at,
-     sm.movements_type_id,
-     sm.precio_venta,
-     sm.cliente,
-     u.nombre AS usuario_nombre,
-     p.nombre AS producto_nombre,
-     p.barcode,
-     mov.display_name AS tipo
-     FROM stock_movements AS sm
-     JOIN users AS u ON sm.usuario_id = u.id
-     JOIN products AS p ON sm.product_id = p.id
-     JOIN movements_types AS mov ON sm.movements_type_id = mov.id
-     WHERE 1=1
-     `;
-
   const values = [];
   let i = 1;
 
+  
+  const where = [];
+
   if (fechaDesde) {
-  query += ` AND sm.created_at >= ($${i++}::date AT TIME ZONE 'America/Argentina/Buenos_Aires')`;
-  values.push(fechaDesde);
-}
-if (fechaHasta) {
-  query += ` AND sm.created_at <  (($${i++}::date + INTERVAL '1 day') AT TIME ZONE 'America/Argentina/Buenos_Aires')`;
-  values.push(fechaHasta);
-}
-
-  query += ` ORDER BY sm.created_at DESC`;
-
-  if (limite != undefined && limite != null) {
-    const lim = Number(limite);
-    if (Number.isInteger(lim) && lim > 0) {
-      query += ` LIMIT $${i++}`;
-      values.push(lim);
-    }
+    where.push(`sm.created_at >= ($${i++}::date AT TIME ZONE 'America/Argentina/Buenos_Aires')`);
+    values.push(fechaDesde);
+  }
+  if (fechaHasta) {
+    where.push(`sm.created_at < (($${i++}::date + INTERVAL '1 day') AT TIME ZONE 'America/Argentina/Buenos_Aires')`);
+    values.push(fechaHasta);
+  }
+  if (search && search.trim().length >= 3) {
+    where.push(`
+      (
+        unaccent(lower(p.nombre))  LIKE unaccent(lower('%' || $${i} || '%'))
+        OR unaccent(lower(p.barcode)) LIKE unaccent(lower('%' || $${i} || '%'))
+      )
+    `);
+    values.push(search.trim());
+    i++;
+  }
+  if (tipo != null && String(tipo).trim() !== '') {
+    where.push(`lower(mov.codigo) = lower($${i++})`);
+    values.push(String(tipo).trim());
   }
 
-  const { rows } = await pool.query(query, values);
+  const lim = Number.isFinite(+limite) && +limite > 0 ? Math.min(+limite, 100) : 25;
+  const off = Number.isFinite(+offset) && +offset >= 0 ? +offset : 0;
 
-  return rows;
+  const whereSQL = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+  const sql = `
+    WITH filtradas AS (
+      SELECT sm.id
+      FROM stock_movements sm
+      JOIN users u     ON sm.usuario_id = u.id
+      JOIN products p  ON sm.product_id = p.id
+      JOIN movements_types mov ON sm.movements_type_id = mov.id
+      ${whereSQL}
+      ORDER BY sm.created_at DESC
+    ),
+    total_rows AS (
+      SELECT COUNT(*)::bigint AS total FROM filtradas
+    ),
+    page AS (
+      SELECT id FROM filtradas
+      LIMIT $${i++} OFFSET $${i++}
+    )
+    SELECT
+      sm.id,
+      sm.product_id,
+      sm.fecha AS fecha_creacion,
+      sm.cantidad AS cantidad_movimiento,
+      sm.direction,
+      sm.stock_anterior,
+      sm.stock_actual,
+      sm.usuario_id,
+      sm.motivo,
+      sm.document,
+      sm.costo_unitario,
+      sm.metadata,
+      sm.created_at,
+      sm.movements_type_id,
+      sm.precio_venta,
+      sm.cliente,
+      u.nombre AS usuario_nombre,
+      p.nombre AS producto_nombre,
+      p.barcode,
+      mov.display_name AS tipo,
+      mov.codigo AS codigo_tipo,
+      (SELECT total FROM total_rows) AS total_filtrado
+    FROM page pg
+    JOIN stock_movements sm ON sm.id = pg.id
+    JOIN users u     ON sm.usuario_id = u.id
+    JOIN products p  ON sm.product_id = p.id
+    JOIN movements_types mov ON sm.movements_type_id = mov.id
+    ORDER BY sm.created_at DESC;
+  `;
+
+  values.push(lim, off);
+
+  const { rows } = await pool.query(sql, values);
+
+  const total = rows[0]?.total_filtrado ? Number(rows[0].total_filtrado) : 0;
+  return {
+    items: rows, 
+    total,
+    limit: Number(limite),
+    offset: Number(offset),
+  };
 };
-
 export const todayStockMovementEstadisticas = async ({ hoy } = {}) => {
 
     const today = hoy ?? new Date().toISOString().slice(0, 10);

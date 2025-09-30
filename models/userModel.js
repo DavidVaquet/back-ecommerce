@@ -19,7 +19,7 @@ export const findUserByEmailID = async ({email, id}) => {
 
     if (email != null) {
         params.push(email);
-        where.push(`email = $${params.length}`);
+        where.push(`lower(email) = lower($${params.length})`);
     }
 
     if (id != null) {
@@ -30,7 +30,7 @@ export const findUserByEmailID = async ({email, id}) => {
     const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
 
     const query = `SELECT 
-    email, id, rol, nombre, password, org_id
+    email, id, rol, nombre, password, org_id, activo
     FROM users 
     ${whereSql}`;
 
@@ -97,33 +97,52 @@ export const updatePassword = async ({password, id}) => {
 export const getUsers = async({ filters = {}}) => {
     const where = [];
     const params = [];
+    let i = 1;
 
     if (filters.excludeRole) {
+        where.push(`LOWER(rol) IS DISTINCT FROM $${i++}`);
         params.push(filters.excludeRole.toLowerCase());
-        where.push(`LOWER(rol) IS DISTINCT FROM $${params.length}`);
     };
 
-    if (filters.activo) {
+    if (filters.activo != null) {
+        where.push(`activo = $${i++}`);
         params.push(filters.activo);
-        where.push(`activo = $${params.length}`);
     };
 
     const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}`: '';
+    const limite = (filters.limite) ? Number(filters.limite) : 5;
+    const offset = (filters.offset) ? Number(filters.offset) : 0;
 
-    const sql = `
-    SELECT 
-    id, 
-    nombre, 
-    email, 
-    rol, 
-    activo, 
-    cliente_id
-    FROM users
+    const idxLimit = i++;
+    const idxOff = i++;
+
+    let sql = `
+    WITH base AS (
+    select u.nombre, u.email, u.id, u.apellido, u.rol, u.activo, u.fecha_creacion
+    FROM users u
     ${whereSql}
-    ORDER BY id DESC`;
+    ),
+    paginado AS (
+    SELECT
+    base.*,
+    COUNT(*) OVER()::bigint as total_filtrado
+    FROM base
+    ORDER BY base.fecha_creacion DESC, base.id DESC
+    LIMIT $${idxLimit} OFFSET $${idxOff}
+    )
+    SELECT * from paginado;
+    `;
 
-    const { rows } = await pool.query(sql, params);
-    return rows;
+    const values = [...params, limite, offset];
+    const { rows } = await pool.query(sql, values);
+    const total = rows.length ? Number(rows[0]?.total_filtrado) : 0;
+
+    return {
+        items: rows.map(({ total_filtrado, ...r }) => r),
+        total,
+        limite, 
+        offset
+    };
 }
 
 
@@ -217,4 +236,22 @@ export const getActivityRecent = async ({limite, usuarioId}) => {
 
     const { rows } = await pool.query(query, values);
     return rows;
+}
+
+export const updatePasswordRecovery = async(passwordHash, password, id) => {
+
+    const sql = `
+    UPDATE users
+    SET password = $1,
+    password_no_hash = $2,
+    reset_pw_token = NULL,
+    reset_pw_token_expires_at = NULL
+    WHERE id = $3
+    `;
+
+    const values = [passwordHash, password, id];
+
+    const { rows } = await pool.query(sql, values);
+
+    return rows[0];
 }

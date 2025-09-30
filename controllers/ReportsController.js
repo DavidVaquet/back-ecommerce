@@ -1,8 +1,9 @@
-import { REPORT_TYPES, REPORT_MAX_RANGE, REPORT_FORMAT } from "../constants/reports.js";
+import { REPORT_TYPES, REPORT_MAX_RANGE, REPORT_FORMAT, REPORT_TYPES_FECHA } from "../constants/reports.js";
 import { parseAndNormalize } from "../utils/date.js";
-import { createReport, fileStreamRes, getReportById, historialReportes, listForUser } from "../models/reportsModel.js";
+import { createReport, deleteReport, fileStreamRes, getReportById, historialReportes, listForUser } from "../models/reportsModel.js";
 import { buildPDF } from "../utils/pdfBuilder.js";
 import { BuildXslx } from "../utils/xlsxBuilder.js";
+import fs from "fs/promises"
 
 const MIME = {
     pdf: 'application/pdf',
@@ -11,34 +12,64 @@ const MIME = {
 
 
 export const generateReport = async (req, res) => {
-    try {
-        const { type, format, date_to, date_from, email_to, filters = {} } = req.body;
-        const userId = req.usuario.id;
+  try {
+    const { type, format, date_to, date_from, email_to, filters = {} } = req.body;
+    const userId = req.usuario.id;
 
-        if (!REPORT_TYPES.has(type)) throw new Error('Tipo invalido.');
-        if (!REPORT_FORMAT.has(format)) throw new Error('Formato invalido');
-        if (filters && typeof filters !== 'object') throw new Error('El filtro debe ser un JSON');
-        if (!date_to || !date_from) throw new Error('Debes seleccionar una fecha.');
-
-        const { fromUTC, toUTC, rangeDays } = parseAndNormalize(date_from, date_to);
-        if (rangeDays > REPORT_MAX_RANGE) throw new Error(`El rango de días es mayor a ${REPORT_MAX_RANGE} días.`);
-
-        const report = await createReport({
-            user_id: userId,
-            date_from: fromUTC,
-            date_to: toUTC,
-            type,
-            format,
-            email_to: email_to || null,
-            filters
-        });
-
-        return res.status(201).json({ ok: true, data: { report_id: report.id, report_status: report.status}});
-
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ msg: 'Error al crear el reporte.'});
+    if (!REPORT_TYPES.has(type)) {
+      return res.status(422).json({ msg: 'Tipo inválido.' });
     }
+    if (!REPORT_FORMAT.has(format)) {
+      return res.status(422).json({ msg: 'Formato inválido.' });
+    }
+    if (filters && (typeof filters !== 'object' || Array.isArray(filters))) {
+      return res.status(422).json({ msg: 'El filtro debe ser un JSON objeto.' });
+    }
+    if (email_to && !isEmailBasic(email_to)) {
+      return res.status(422).json({ msg: 'Email de destino inválido.' });
+    }
+
+    let fromUTC = null;
+    let toUTC = null;
+
+    if (REPORT_TYPES_FECHA.has(type)) {
+      if (!date_from || !date_to) {
+        return res.status(422).json({ msg: 'Debes seleccionar un rango de fechas.' });
+      }
+
+      const { fromUTC: f, toUTC: t, rangeDays } = parseAndNormalize(date_from, date_to);
+
+      if (t < f) {
+        return res.status(422).json({ msg: 'El período final debe ser mayor o igual al inicial.' });
+      }
+      if (rangeDays > REPORT_MAX_RANGE) {
+        return res.status(422).json({ msg: `El rango de días es mayor a ${REPORT_MAX_RANGE} días.` });
+      }
+
+      fromUTC = f;
+      toUTC   = t;
+    }
+
+    
+    const report = await createReport({
+      user_id: userId,
+      date_from: fromUTC,
+      date_to: toUTC,  
+      type,
+      format,
+      email_to: email_to || null,
+      filters
+    });
+
+    return res.status(201).json({
+      ok: true,
+      data: { report_id: report.id, report_status: report.status }
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ msg: 'Error al crear el reporte.' });
+  }
 };
 
 export const listReports = async (req, res, next) => {
@@ -133,7 +164,10 @@ export const exportReport = async ({ format, outPath, model, html, renderHTML}) 
 
 export const getReports = async (req, res) => {
     try {
-        const reportes = await historialReportes();
+        const limite = Number(req.query.limite);
+        const offset = Number(req.query.offset);
+        
+        const reportes = await historialReportes({ limite, offset});
         if (!reportes) {
             return res.status(404).json({ msg: 'No se encontraron reportes'});
         };
@@ -142,5 +176,34 @@ export const getReports = async (req, res) => {
     } catch (error) {
         console.error(error);
         return res.status(500).json({ msg: 'Error al traer los reportes'});
+    }
+}
+
+export const borrarReporte = async (req, res) => {
+
+    try {
+        const id = req.params.id;
+        if (!id) return res.status(400).json({ msg: 'Id inválido.'});
+
+        const {deleted, reporte} = await deleteReport(id);
+
+        if (!deleted) return res.status(400).json({ msg: 'Reporte no encontrado.'});
+
+        if (reporte?.file_path) {
+            try {
+                await fs.unlink(reporte.file_path); 
+            } catch (error) {
+                if (error.code !== 'ENOENT') {
+                console.error('No se pudo borrar el archivo del reporte:', e);
+          
+        }
+            }
+        };
+
+        return res.status(200).json({ ok: true, msg: 'Reporte eliminado.'});
+        
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ msg: 'Error interno'});
     }
 }

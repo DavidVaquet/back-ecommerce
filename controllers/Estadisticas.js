@@ -5,10 +5,21 @@ export async function estadisticasHandler(req, res) {
   try {
     const periodo = req.query.periodo || "30d";
     const categoryId = req.query.categoryId ? Number(req.query.categoryId) : null;
-    const topLimit = req.query.topLimit ? Number(req.query.topLimit) : 10;
-    const criticosLimit = req.query.criticosLimit ? Number(req.query.criticosLimit) : 20;
 
-    const data = await getEstadisticasGlobales({ periodo, categoryId, topLimit, criticosLimit });
+    const topLimit       = req.query.topLimit       ? Number(req.query.topLimit)       : 10;
+    const topOffset      = req.query.topOffset      ? Number(req.query.topOffset)      : 0;
+    const criticosLimit  = req.query.criticosLimit  ? Number(req.query.criticosLimit)  : 20;
+    const criticosOffset = req.query.criticosOffset ? Number(req.query.criticosOffset) : 0;
+
+    const data = await getEstadisticasGlobales({
+      periodo,
+      categoryId,
+      topLimit,
+      topOffset,
+      criticosLimit,
+      criticosOffset,
+    });
+
     res.json(data);
   } catch (err) {
     console.error("Error en /api/estadisticas:", err);

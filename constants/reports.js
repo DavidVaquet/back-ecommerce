@@ -1,6 +1,7 @@
 import { getClientesDataset, getMovimientosDataset, getProductosCriticosDataset, getVentasDataset, getValorTotalInventarioDataset } from "../models/reports-datasets.js";
 
 export const REPORT_TYPES = new Set(['inventario', 'ventas', 'productos_criticos', 'movimientos', 'rentabilidad', 'clientes']);
+export const REPORT_TYPES_FECHA = new Set(['movimientos', 'rentabilidad', 'clientes', 'ventas']);
 
 export const REPORT_MAX_RANGE = 370;
 

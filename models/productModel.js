@@ -400,3 +400,26 @@ export const eliminarProduct = async (id) => {
 
   return rowCount;
 }
+
+export const findProductById = async (id) => {
+
+  const sql = `
+  SELECT
+  p.nombre,
+  p.barcode,
+  c.nombre as categoria_nombre,
+  s.cantidad,
+  p.precio,
+  p.precio_costo,
+  p.id
+  FROM products p
+  JOIN stock s ON s.product_id = p.id
+  JOIN subcategories sb ON sb.id = p.subcategoria_id
+  JOIN categories c ON c.id = sb.categoria_id
+  WHERE p.id = $1`;
+
+  const values = [id];
+  const { rows } = await pool.query(sql, values)
+  
+  return rows[0];
+}

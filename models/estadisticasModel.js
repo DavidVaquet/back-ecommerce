@@ -94,7 +94,8 @@ SELECT
   END AS variacion_periodo
 FROM base;
 `;
-const topSQL  = `SELECT
+const topSQL  = `
+SELECT
   -- Identidad
   p.id,
   p.nombre,
@@ -109,31 +110,30 @@ const topSQL  = `SELECT
   ROUND(
     COALESCE(st.cantidad, 0) * COALESCE(NULLIF(p.precio_costo, 0), p.precio, 0),
     2
-  ) AS valor_stock
+  ) AS valor_stock,
 
+  COUNT(*) OVER()::bigint AS total_rows        -- 👈 total antes de LIMIT/OFFSET
 FROM products p
 JOIN subcategories sb ON sb.id = p.subcategoria_id
 JOIN categories c     ON c.id  = sb.categoria_id
 LEFT JOIN stock st    ON st.product_id = p.id
 JOIN ventas_detalle vt ON vt.producto_id = p.id
 JOIN ventas v          ON v.id = vt.venta_id
-
 WHERE
   v.fecha >= $1 AND v.fecha < $2
   AND p.estado = 1
   AND ($3::int IS NULL OR c.id = $3)
-
 GROUP BY
   p.id, p.nombre, c.nombre, st.cantidad, p.precio_costo, p.precio
-
 ORDER BY
   SUM(vt.cantidad) DESC,         -- Top por unidades
   SUM(vt.subtotal) DESC,         -- Desempate por ingresos
   p.nombre ASC
-
-LIMIT COALESCE($4::int, 10);
+LIMIT COALESCE($4::int, 10)
+OFFSET COALESCE($5::int, 0);
 `;
-const critSQL = `SELECT
+const critSQL = `
+SELECT
   p.id,
   p.nombre,
   c.nombre AS categoria,
@@ -144,7 +144,8 @@ const critSQL = `SELECT
     WHEN COALESCE(st.cantidad,0) = 0 THEN 'sin_stock'
     WHEN COALESCE(st.cantidad,0) < COALESCE(st.cantidad_minima,0) THEN 'bajo_stock'
     ELSE 'critico'
-  END AS estado
+  END AS estado,
+  COUNT(*) OVER()::bigint AS total_rows  
 FROM products p
 JOIN subcategories sb ON sb.id = p.subcategoria_id
 JOIN categories c     ON c.id  = sb.categoria_id
@@ -157,8 +158,10 @@ GROUP BY p.id, p.nombre, c.nombre, st.cantidad, st.cantidad_minima
 HAVING COALESCE(st.cantidad,0) = 0
     OR COALESCE(st.cantidad,0) < COALESCE(st.cantidad_minima,0)
 ORDER BY stock_actual ASC, dias_sin_venta DESC
-LIMIT COALESCE($2::int, 20);
+LIMIT COALESCE($2::int, 20)
+OFFSET COALESCE($3::int, 0);
 `;
+
 const catSQL  = `SELECT
   c.nombre AS categoria,
   COALESCE(SUM(vt.subtotal), 0) AS ingresos,
@@ -171,7 +174,7 @@ JOIN products p       ON p.subcategoria_id = sb.id AND p.estado = 1
 LEFT JOIN ventas_detalle vt ON vt.producto_id = p.id
 LEFT JOIN ventas v          ON v.id = vt.venta_id
   AND v.fecha >= $1 AND v.fecha < $2
-WHERE ($3::int IS NULL OR c.id = $3)   -- <<< asegúrate de tener ESTO
+WHERE ($3::int IS NULL OR c.id = $3) 
 GROUP BY c.nombre
 ORDER BY ingresos DESC;`;
 
@@ -215,14 +218,16 @@ export async function getEstadisticasGlobales({
   periodo = "30d",
   categoryId = null,
   topLimit = 10,
+  topOffset = 0,
   criticosLimit = 20,
+  criticosOffset = 0,
 } = {}) {
   const { start, end } = buildDateRange(periodo);
   const { prevStart, prevEnd } = buildPrevRange(start, end);
 
   const kpisParams = [start, end, categoryId, prevStart, prevEnd];
-  const topParams  = [start, end, categoryId, topLimit];
-  const critParams = [categoryId, criticosLimit];
+  const topParams  = [start, end, categoryId, topLimit, topOffset];
+  const critParams = [categoryId, criticosLimit, criticosOffset];
   const catParams  = [start, end, categoryId];
   const promParams = [start, end];
 
@@ -230,30 +235,56 @@ export async function getEstadisticasGlobales({
     pool.query(kpisSQL, kpisParams),
     pool.query(topSQL,  topParams),
     pool.query(critSQL, critParams),
-    pool.query(catSQL,  catParams),   
-    pool.query(rotSQL,  promParams),  
+    pool.query(catSQL,  catParams),
+    pool.query(rotSQL,  promParams),
   ]);
 
   const toNum0 = (x) => Number(x ?? 0);
 
- 
   const KPIS = kpisRes.rows?.[0] || {};
   const ROT  = promRes.rows?.[0] || {};
 
- 
   const categoriasRaw = Array.isArray(catRes.rows) ? catRes.rows : [];
   let ventas_por_categoria = categoriasRaw.map((r) => ({
     categoria: r.categoria,
-    ingresos:  toNum0(r.ingresos),   
-    unidades:  Number(r.unidades ?? 0),  
-    ordenes:   Number(r.ordenes ?? 0),    
-    productos: Number(r.productos ?? 0),  
+    ingresos:  toNum0(r.ingresos),
+    unidades:  Number(r.unidades ?? 0),
+    ordenes:   Number(r.ordenes ?? 0),
+    productos: Number(r.productos ?? 0),
   }));
   const totalIngresos = ventas_por_categoria.reduce((acc, x) => acc + (x.ingresos || 0), 0);
   ventas_por_categoria = ventas_por_categoria.map((x) => ({
     ...x,
     porcentaje: totalIngresos ? Number(((x.ingresos / totalIngresos) * 100).toFixed(2)) : 0,
   }));
+
+  // ---- TOP paginado
+  const topRows = Array.isArray(topRes.rows) ? topRes.rows : [];
+  const topTotal = topRows.length ? Number(topRows[0].total_rows) : 0;
+  const topItems = topRows.map((r) => ({
+    id: r.id,
+    nombre: r.nombre,
+    categoria: r.categoria,
+    ventas_mes: toNum0(r.ingresos),
+    stock_actual: Number(r.stock_actual ?? 0),
+    valor_stock: toNum0(r.valor_stock),
+    unidades_vendidas: Number(r.unidades_vendidas ?? 0),
+  }));
+  const topHasMore = topOffset + topLimit < topTotal;
+
+  // ---- Críticos paginado
+  const critRows = Array.isArray(critRes.rows) ? critRes.rows : [];
+  const critTotal = critRows.length ? Number(critRows[0].total_rows) : 0;
+  const critItems = critRows.map((r) => ({
+    id: r.id,
+    nombre: r.nombre,
+    categoria: r.categoria,
+    stock_actual: Number(r.stock_actual ?? 0),
+    stock_minimo: Number(r.stock_minimo ?? 0),
+    dias_sin_venta: r.dias_sin_venta == null ? null : Number(r.dias_sin_venta),
+    estado: r.estado,
+  }));
+  const critHasMore = criticosOffset + criticosLimit < critTotal;
 
   return {
     metricas_principales: {
@@ -266,25 +297,21 @@ export async function getEstadisticasGlobales({
       rotacion_promedio:      toNum0(ROT.rotacion_promedio),
     },
 
-    productos_top: (topRes.rows ?? []).map((r) => ({
-      id: r.id,
-      nombre: r.nombre,
-      categoria: r.categoria,
-      ventas_mes: toNum0(r.ingresos),       
-      stock_actual: Number(r.stock_actual ?? 0),
-      valor_stock: toNum0(r.valor_stock),
-      unidades_vendidas: Number(r.unidades_vendidas ?? 0),
-    })),
+    productos_top: {
+      items: topItems,
+      total: topTotal,
+      limit: topLimit,
+      offset: topOffset,
+      has_more: topHasMore,
+    },
 
-    productos_criticos: (critRes.rows ?? []).map((r) => ({
-      id: r.id,
-      nombre: r.nombre,
-      categoria: r.categoria,
-      stock_actual: Number(r.stock_actual ?? 0),
-      stock_minimo: Number(r.stock_minimo ?? 0),
-      dias_sin_venta: r.dias_sin_venta == null ? null : Number(r.dias_sin_venta),
-      estado: r.estado,
-    })),
+    productos_criticos: {
+      items: critItems,
+      total: critTotal,
+      limit: criticosLimit,
+      offset: criticosOffset,
+      has_more: critHasMore,
+    },
 
     ventas_por_categoria,
   };

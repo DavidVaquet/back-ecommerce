@@ -152,10 +152,9 @@ export const getMovementTypes = async (req, res) => {
 export const getMovementStock = async (req, res) => {
 
     try {
-        const { limite, fechaDesde, fechaHasta } = req.query;
-        // console.log('[BE query]', req.query);
+        const { limite, fechaDesde, fechaHasta, offset, search, tipo } = req.query;
 
-        const movimientos = await getAllMovementStock({limite, fechaDesde, fechaHasta});
+        const movimientos = await getAllMovementStock({limite, fechaDesde, fechaHasta, offset, search, tipo});
 
         if (!movimientos) {
             return res.status(400).json({ msg: 'No hay movimientos registrados.'});

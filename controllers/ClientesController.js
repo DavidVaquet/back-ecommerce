@@ -1,5 +1,5 @@
 import express from 'express';
-import { altaCliente, buscarCliente, editarClientes, getClientesEstado, obtenerClientesCompras, suspenderCuenta } from '../models/clientesModel.js';
+import { altaCliente, buscarCliente, editarClientes, getClientesEstado, obtenerClientesCompras, obtenerEstadisticasClientes, suspenderCuenta } from '../models/clientesModel.js';
 import { activityRecent } from './UsersControllers.js';
 
 export const crearCliente = async (req, res) => {
@@ -28,13 +28,13 @@ export const crearCliente = async (req, res) => {
 export const clientesEstado = async (req, res) => {
     try {
         
-        let activo = req.query.activo;
+         let { activo, limite, offset, search, origen, tipo_cliente } = req.query;
 
         if (activo != null) {
             activo = activo === 'true'
         };
 
-        const clienteOn = await getClientesEstado(activo);
+        const clienteOn = await getClientesEstado({activo, limite, offset, search, origen, tipo_cliente});
 
         return res.status(200).json(clienteOn)
     } catch (error) {
@@ -45,7 +45,7 @@ export const clientesEstado = async (req, res) => {
 
 export const clientesConCompras = async (req, res) => {
     try {
-        const clientes = await obtenerClientesCompras();
+        const clientes = await obtenerClientesCompras(req.query);
         return res.status(200).json(clientes);
     } catch (error) {
         console.error(error);
@@ -93,5 +93,24 @@ export const modificarCliente = async (req, res) => {
         await activityRecent(req, {estado: 'Exitoso', accion: 'Falló al modificar un cliente.'});
         return res.status(500).json({msg: 'Error al editar el cliente.'});
         
+    }
+}
+
+export const estadisticasClientes = async (req, res) => {
+
+    try {
+        const { scope } = req.query;
+        const alta = scope === 'alta';
+        const gestion = scope === 'gestion';
+        
+        const estadisticas = await obtenerEstadisticasClientes({ alta, gestion })
+    
+        if (!estadisticas) throw new Error('Error al obtener las estadisticas');
+    
+        res.json(estadisticas);
+        
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ msg: 'Error interno'});
     }
 }

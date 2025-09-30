@@ -142,9 +142,11 @@ export const listForUser = async ({ user_id, page, pageSize, type, status }) => 
     return { items, total, page, pageSize, hasNext: offset + items.length < total };
 }
 
-export const historialReportes = async () => {
-
-    const sql = `
+export const historialReportes = async ({ limite, offset } = {}) => {
+    
+    let i = 1;
+    const params = [];
+    let sql = `
     SELECT
     r.id,
     r.user_id,
@@ -153,14 +155,26 @@ export const historialReportes = async () => {
     r.format,
     r.file_size_bytes,
     r.created_at,
-    u.nombre as user_nombre
+    u.nombre as user_nombre,
+    COUNT(*) OVER()::int AS total
     FROM reports r
     JOIN users u ON u.id = r.user_id
     ORDER BY r.created_at DESC, r.id DESC`;
+    
+    if (limite != null && limite > 0 && limite != undefined) {
+        sql += ` LIMIT $${i++}`;
+        params.push(limite);
+    }
 
-    const { rows } = await pool.query(sql);
+    if (offset != null && offset != undefined) {
+        sql += ` OFFSET $${i++}`;
+        params.push(offset);
+    }
 
-    const data = rows.map((r) => ({
+    const { rows } = await pool.query(sql, params);
+    const total =  rows.length > 0 ? rows[0].total : 0;
+
+    const items = rows.map((r) => ({
         id: r.id,
         nombre: TYPE_LABELS[r.type],
         tipo: r.type,
@@ -171,7 +185,7 @@ export const historialReportes = async () => {
         generado_por: r.user_nombre || 'Sistema'
     }))
 
-    return data;
+    return { items, total };
 }
 
 export const fileStreamRes = async (res, report) => {
@@ -193,4 +207,29 @@ export const fileStreamRes = async (res, report) => {
 
     const readStream = createReadStream(absPath);
     await pipeline(readStream, res);
+}
+
+export const deleteReport = async (id) => {
+    
+    const params = [];
+    const where = [];
+    let i = 1;
+
+    if (id != null) {
+        where.push(`id = $${i++}`);
+        params.push(id);
+    };
+
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const sql = `DELETE 
+    FROM reports
+    ${whereSql}
+    RETURNING id, user_id, status, file_path`;
+
+    const { rows } = await pool.query(sql, params);
+
+    return {
+        deleted: rows.length > 0,
+        reporte: rows[0] || null
+    }
 }

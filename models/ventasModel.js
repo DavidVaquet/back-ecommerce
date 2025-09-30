@@ -1,4 +1,5 @@
 import pool from "../config/db.js";
+import { parseAndNormalize } from "../utils/date.js";
 
 export const crearVenta = async ({client, canal, medio_pago, total, cliente_id, usuarioId, descuento, subtotal, impuestos, currency, descuento_porcentaje, impuestos_porcentaje}) => {
 
@@ -21,76 +22,145 @@ export const crearVenta = async ({client, canal, medio_pago, total, cliente_id, 
     return { ventaId, document };
 };
 
-export const getVentasConDetalles = async () => {
+export const getVentasConDetalles = async ({
+  search, fecha_desde, fecha_fin, limit, offset, origen
+    } = {}) => {
 
-    const query = `
-    SELECT 
-    v.*,
-    c.nombre AS cliente_nombre,
-    c.apellido AS cliente_apellido,
-    c.email AS cliente_email,
-    c.telefono AS cliente_telefono,
-    u.nombre AS usuario_nombre,
-    vt.producto_id AS vt_producto_id,
-    vt.cantidad AS vt_cantidad,
-    vt.precio_unitario AS vt_precio_unitario,
-    vt.subtotal AS vt_subtotal,
-    p.nombre AS producto_nombre,
-    p.imagen_url AS producto_imagen
-    FROM ventas AS v
-    JOIN clientes AS c ON v.cliente_id = c.id
-    JOIN users as u ON v.usuario_id = u.id
-    JOIN ventas_detalle AS vt ON vt.venta_id = v.id
-    JOIN products AS p ON vt.producto_id = p.id 
+  let fromParam = null, toParam = null;
+  if (fecha_desde && fecha_fin) {
+    const { fromUTC, toUTC } = parseAndNormalize(fecha_desde, fecha_fin);
+    fromParam = fromUTC;
+    toParam   = toUTC;
+  }
+
+  const where = [];
+  const params = [];
+  let i = 1;
+
+  if (fromParam) { where.push(`v.fecha_utc >= $${i++}::timestamptz`); params.push(fromParam); }
+  if (toParam)   { where.push(`v.fecha_utc <= $${i++}::timestamptz`); params.push(toParam); }
+
+  const q = (search ?? '').trim();
+  if (q) {
+    where.push(`
+      (
+        unaccent(lower(v.codigo))    LIKE unaccent(lower('%' || $${i} || '%'))
+        OR unaccent(lower(c.nombre)) LIKE unaccent(lower('%' || $${i} || '%'))
+        OR unaccent(lower(u.nombre)) LIKE unaccent(lower('%' || $${i} || '%'))
+        OR EXISTS (
+          SELECT 1
+          FROM ventas_detalle vd
+          JOIN products p ON p.id = vd.producto_id
+          WHERE vd.venta_id = v.id
+            AND unaccent(lower(p.nombre)) LIKE unaccent(lower('%' || $${i} || '%'))
+        )
+      )
+    `);
+    params.push(q);
+    i++;
+  }
+
+  if (origen) {
+    const origenParsed = origen.toLowerCase().trim();
+    where.push(`v.canal = $${i++}`);
+    params.push(origenParsed);
+  }
+
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+  const lim = Math.min(Math.max(+limit || 20, 1), 100);
+  const off = Math.max(+offset || 0, 0);
+
+  const sql = `
+    WITH filtradas AS (
+      SELECT v.id
+      FROM ventas v
+      JOIN clientes c ON v.cliente_id = c.id
+      JOIN users    u ON v.usuario_id = u.id
+      ${whereSql}
+      ORDER BY v.id DESC
+    ),
+    total_rows AS (SELECT COUNT(*)::bigint AS total FROM filtradas),
+    page AS (
+      SELECT id FROM filtradas
+      LIMIT $${i++} OFFSET $${i++}
+    )
+    SELECT
+      v.id, v.codigo, v.total, v.fecha, v.canal, v.medio_pago, v.descuento, v.impuestos, v.subtotal, v.orden, v.descuento_porcentaje, v.impuestos_porcentaje,
+      c.nombre AS cliente_nombre, c.apellido AS cliente_apellido, c.email AS cliente_email, c.telefono AS cliente_telefono,
+      u.nombre AS usuario_nombre,
+      json_agg(
+        json_build_object(
+          'id', vt.producto_id, 'nombre', p.nombre, 'precio', vt.precio_unitario,
+          'cantidad', vt.cantidad, 'imagen', p.imagen_url
+        ) ORDER BY vt.id
+      ) AS productos,
+      (SELECT total FROM total_rows) AS total_filtrado
+    FROM page pg
+    JOIN ventas v          ON v.id = pg.id
+    JOIN clientes c        ON v.cliente_id = c.id
+    JOIN users u           ON v.usuario_id = u.id
+    JOIN ventas_detalle vt ON vt.venta_id = v.id
+    JOIN products p        ON p.id = vt.producto_id
+    GROUP BY
+      v.id, v.codigo, v.total, v.fecha, v.canal, v.medio_pago, v.descuento, v.impuestos, v.subtotal, v.orden, v.descuento_porcentaje, v.impuestos_porcentaje,
+      c.nombre, c.apellido, c.email, c.telefono, u.nombre
     ORDER BY v.id DESC;
+  `;
+
+  params.push(lim, off);
+
+  const { rows } = await pool.query(sql, params);
+
+  const total = rows[0]?.total_filtrado ? Number(rows[0].total_filtrado) : 0;
+  const ventas = rows.map(f => ({
+    id: f.id,
+    codigo: f.codigo,
+    total: Number(f.total),
+    fecha: f.fecha,
+    canal: f.canal,
+    medio_pago: f.medio_pago,
+    descuento: Number(f.descuento),
+    impuestos: Number(f.impuestos),
+    subtotal: Number(f.subtotal),
+    descuento_porcentaje: Number(f.descuento_porcentaje),
+    impuesto_porcentaje: Number(f.impuestos_porcentaje),
+    orden: f.orden,
+    cliente: { nombre: f.cliente_nombre, apellido: f.cliente_apellido, email: f.cliente_email, telefono: f.cliente_telefono },
+    usuario: { nombre: f.usuario_nombre },
+    productos: (f.productos || []).map(p => ({ id: p.id, nombre: p.nombre, precio: Number(p.precio), cantidad: p.cantidad, imagen: p.imagen })),
+  }));
+
+  return { ventas, total, limit: lim, offset: off };
+};
+
+export const getVentasEstadisticas = async () => {
+
+    const sql = `
+    SELECT
+    COUNT(*)::bigint                                   AS total_ventas,
+    COUNT(*) FILTER (WHERE v.canal = 'local')::bigint  AS total_ventas_local,
+    COUNT(*) FILTER (WHERE v.canal = 'online')::bigint AS total_ventas_online,
+    COALESCE(SUM(v.total), 0)::numeric(20,2)                                   AS ingresos_totales,
+    COALESCE(SUM(v.total) FILTER (WHERE v.canal = 'local'), 0)::numeric(20,2)  AS ingresos_local,
+    COALESCE(SUM(v.total) FILTER (WHERE v.canal = 'online'), 0)::numeric(20,2) AS ingresos_online
+    FROM ventas v;
+
     `;
 
-    const result = await pool.query(query);
-    const filas = result.rows;
+    const { rows: [r] } = await pool.query(sql);
 
-    const ventasMap = new Map();
+    const out = {
+    total_ventas: Number(r.total_ventas),           
+    total_ventas_local: Number(r.total_ventas_local),
+    total_ventas_online: Number(r.total_ventas_online),
 
-    for (const fila of filas) {
-        const ventaId = fila.id;
+    
+    ingresos_totales: Number(r.ingresos_totales),     
+    ingresos_local: Number(r.ingresos_local),
+    ingresos_online: Number(r.ingresos_online),
+    };
 
-        if(!ventasMap.has(ventaId)){
-            ventasMap.set(ventaId, {
-                id: fila.id,
-                codigo: fila.codigo,
-                total: Number(fila.total),
-                fecha: fila.fecha,
-                canal: fila.canal,
-                medio_pago: fila.medio_pago,
-                descuento: Number(fila.descuento),
-                impuestos: Number(fila.impuestos),
-                subtotal: Number(fila.subtotal),
-                orden: fila.orden,
-
-                cliente: {
-                    nombre: fila.cliente_nombre,
-                    apellido: fila.cliente_apellido,
-                    email: fila.cliente_email,
-                    telefono: fila.cliente_telefono
-                },
-
-                usuario: {
-                    nombre: fila.usuario_nombre
-                },
-
-                productos: []
-            })
-        }
-
-
-        ventasMap.get(ventaId).productos.push({
-            id: fila.vt_producto_id,
-            nombre: fila.producto_nombre,
-            precio: Number(fila.vt_precio_unitario),
-            cantidad: fila.vt_cantidad,
-            imagen: fila.producto_imagen
-        })
-    }
-
-    return Array.from(ventasMap.values());
-}
+    return out;
+} 
 

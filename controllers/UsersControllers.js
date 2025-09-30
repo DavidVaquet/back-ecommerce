@@ -13,6 +13,7 @@ import {
   getActivityRecent,
   getUsers,
   deleteUser,
+  updatePasswordRecovery,
 } from "../models/userModel.js";
 import pool from "../config/db.js";
 import { getClientIp, getUserAgent } from "../middlewares/authMiddlewares.js";
@@ -23,16 +24,25 @@ import {
   mapSessionsWithGeo,
 } from "../utils/sessionFormater.js";
 import { ORG_ID } from "../config/tenancy.js";
+import { generarHashToken, hashPassword, sha256 } from "../utils/security.js";
+import { enviarEmailConLink } from "../utils/enviarEmailAdjunto.js";
 
 export const newUser = async (req, res) => {
   const { nombre, email, password, rol, activo, telefono, apellido, direccion } = req.body;
 
   // console.log(req.body);
-  if (!nombre || !email || !password) {
-    return res
-      .status(400)
-      .json({ msg: "Nombre, email y password son obligatorios." });
-  }
+  if (!nombre || !nombre.trim()) {
+  return res.status(400).json({ msg: "El nombre es obligatorio." });
+}
+
+if (!apellido || !apellido.trim()) {
+  return res.status(400).json({ msg: "El apellido es obligatorio." });
+}
+
+if (!rol) {
+  return res.status(400).json({ msg: "Debes seleccionar un rol." });
+}
+
 
   try {
     const userExistente = await findUserByEmailID({email});
@@ -85,6 +95,10 @@ export const loginUsuario = async (req, res) => {
     if (!passwordValido) {
       return res.status(400).json({ msg: "El password es incorrecto." });
     }
+
+    if (!usuario.activo) {
+      return res.status(400).json({ msg: "Tu cuenta esta deshabilitada, contacta con soporte." });
+    };
 
     // Actualizar ultimo acceso
     await actualizarUltimoIngreso(usuario.id);
@@ -194,6 +208,22 @@ export const adminEditUser = async (req, res) => {
     const idParsed = parseInt(id);
     const estadoParsed = activo === 'activo' ? true : false;
 
+    if (!nombre || !nombre.trim()) {
+      return res.status(400).json({ msg: "El nombre es obligatorio." });
+    }
+
+    if (!apellido || !apellido.trim()) {
+      return res.status(400).json({ msg: "El apellido es obligatorio." });
+    }
+
+    if (!rol) {
+      return res.status(400).json({ msg: "Debes seleccionar un rol." });
+    }
+
+    if (activo === undefined || activo === null) {
+      return res.status(400).json({ msg: "Debes seleccionar un estado." });
+    }
+    
     const userExistente = await findUserByEmailID({id: idParsed});
 
     if (!userExistente) {
@@ -291,7 +321,9 @@ export const obtenerUsuarios = async(req, res) => {
       excludeRole: req.query.excludeRole ?? '',
       activo: req.query.activo === 'true' ? true
       : req.query.activo === 'false' ? false
-      : undefined 
+      : undefined,
+      limite: Number(req.query.limite),
+      offset: Number(req.query.offset)
     };
 
     const users = await getUsers({ filters });
@@ -482,3 +514,131 @@ export const getUsageStats = async (req, res) => {
     return res.status(500).json({ msg: "Error calculando estadísticas" });
   }
 };
+
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    console.log(req.body);
+
+    if (!email) return res.status(400).json({ msg: 'Debes introducir un correo válido.'});
+
+    const user = await findUserByEmailID(email);
+
+    if (!user) return res.status(400).json({ msg: 'El email no existe, prueba con otro.'});
+    // console.log(user);
+    const rawToken = generarHashToken(30);
+    const tokenHash = sha256(rawToken);
+    const expire_at = new Date(Date.now() + 1000 * 60 * 30);
+
+    await pool.query(`
+      UPDATE users 
+      SET reset_pw_token = $1,
+      reset_pw_token_expires_at = $2
+      WHERE id = $3`, [tokenHash, expire_at, user.id]);
+
+    const resetUrl = `${process.env.APP_PUBLIC_URL}/restablecer-password/${rawToken}`;
+    const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 8px; padding: 24px;">
+          
+          <div style="text-align: center; margin-bottom: 20px;">
+            <img src="http://localhost:5002/public/logoIclub.png" alt="iClub" style="width: 120px;" />
+          </div>
+
+          <h2 style="color: #1e40af;">¡Hola ${user.nombre}!</h2>
+          <p style="font-size: 16px;">
+            Recibimos una solicitud para restablecer tu contraseña en <strong>iClub</strong>.
+          </p>
+          <p style="font-size: 16px;">
+            Para continuar, hacé clic en el siguiente botón. El enlace vence en <strong>30 minutos</strong>.
+          </p>
+
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetUrl}" target="_blank"
+              style="
+                background-color: #1e40af;
+                color: white;
+                text-decoration: none;
+                padding: 14px 28px;
+                border-radius: 6px;
+                font-size: 16px;
+                display: inline-block;
+              ">
+              🔑 RESTABLECER CONTRASEÑA
+            </a>
+          </div>
+
+          <p style="font-size: 14px; color: #555;">
+            Si el botón no funciona, copiá y pegá este enlace en tu navegador:<br>
+            <a href="${resetUrl}" style="color:#1e40af; word-break: break-all;">${resetUrl}</a>
+          </p>
+
+          <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;" />
+
+          <div style="font-size: 13px; color: #777;">
+            iClub Catamarca<br>
+            Intendente Yamil Fadel esq. Illia s/n<br>
+            Tel: 3834292951 - 3834345859
+          </div>
+        </div>
+      `;
+
+      const subject = `Restablecer tu contraseña - iClub Catamarca`
+    try {
+      await enviarEmailConLink({
+        html,
+        subject,
+        para: user.email
+
+      })
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+
+    return res.status(200).json({ msg: 'Te envíamos un correo con las instrucciones, sigue los pasos para restablecer tu contraseña.'});
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ msg: 'Ocurrió un error al enviar el email, intentalo de nuevo.'});
+  }
+}
+
+export const resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      return res.status(400).json({ msg: 'Token y nueva contraseña son requeridos.'});
+    };
+    
+    if (password.length < 8) return res.status(400).json({ msg: 'La contraseña debe tener al menos 8 caracteres.'});
+
+    const tokenHash = sha256(token);
+
+    const { rows } = await pool.query(`
+      SELECT id, reset_pw_token, reset_pw_token_expires_at
+      FROM users
+      WHERE reset_pw_token = $1`, [tokenHash]);
+
+      if (rows.length === 0) return res.status(400).json({ msg: 'El enlace expiró, reintenta nuevamente.'});
+
+      const user = rows[0];
+
+      const newHash = await hashPassword(password);
+
+      await pool.query('BEGIN');
+      try {
+        await updatePasswordRecovery(newHash, password, user.id);
+        await pool.query('COMMIT');
+      } catch (error) {
+        await pool.query('ROLLBACK');
+        throw error;
+      };
+
+      return res.status(200).json({ msg: 'Contraseña actualizada. Ya podés iniciar sesión.'});
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ msg: 'Ocurrió un error al restablecer la contraseña.'});
+  }
+}
