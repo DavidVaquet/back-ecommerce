@@ -26,30 +26,33 @@ const __dirname = path.dirname(__filename);
 
 // Middlewares
 
-const ALLOWED_ORIGINS = [
+const ALLOWED_ORIGINS = new Set([
   'https://iclubcatamarca.com',
   'https://www.iclubcatamarca.com',
-  'https://api.iclubcatamarca.com',
-  'http://localhost:5173',
+  'http://localhost:5173'
+]);
 
-];
+function isAllowed(origin) {
+  try {
+    if (!origin) return true;
+    const url = new URL(origin);
+    if (ALLOWED_ORIGINS.has(url.origin)) return true;
+    if (url.hostname.endsWith('.iclubcatamarca.com')) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
 
 const corsOptions = {
-  origin: (origin, cb) => {
-    if (!origin) return cb(null, true);
-
-    if (ALLOWED_ORIGINS.includes(origin)) {
-      return cb(null, true);
-    }
-    return cb(new Error('Not allowed by CORS'));
+  origin(origin, cb) {
+    if (isAllowed(origin)) return cb(null, true);
+    return cb(new Error(`Origin no permitido por CORS: ${origin || '(sin origin)'}`));
   },
-
-  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization','X-Requested-With'],
   credentials: false,
-  exposedHeaders: ['Content-Disposition'],
-  optionsSuccessStatus: 204
-}
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  optionsSuccessStatus: 204,
+};
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
