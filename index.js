@@ -29,7 +29,9 @@ const __dirname = path.dirname(__filename);
 const ALLOWED_ORIGINS = [
   'https://iclubcatamarca.com',
   'https://www.iclubcatamarca.com',
-  'http://localhost:5173'
+  'https://api.iclubcatamarca.com',
+  'http://localhost:5173',
+
 ];
 
 const corsOptions = {

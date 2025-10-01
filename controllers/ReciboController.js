@@ -201,7 +201,7 @@ export const generarReciboVenta = async (req, res) => {
       const token = jwt.sign({
         codigo: venta.codigo
       }, process.env.JWT_PASSWORD, {
-        expiresIn: '7200m'
+        expiresIn: '72h'
       });
       res.json({
         ok: true,
@@ -224,7 +224,7 @@ export const generarReciboVenta = async (req, res) => {
 export const enviarRecibo = async (req, res) => {
   const venta = req.body;
 
-  
+
   if (!venta?.codigo || !venta.cliente?.email) {
     return res.status(400).json({ msg: 'Datos insuficientes para enviar el email, falta el codigo de venta o el email del cliente'});
   }
