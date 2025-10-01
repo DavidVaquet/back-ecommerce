@@ -4,9 +4,9 @@ import { verifyToken } from '../middlewares/authMiddlewares.js';
 
 const router = express.Router();
 
-router.post('/generar-recibo', verifyToken, generarReciboVenta);
+router.post('/generar-recibo', generarReciboVenta);
 router.post('/enviar-recibo', verifyToken, enviarRecibo);
-router.get('/descargar-recibo/:nombreArchivo', verifyToken, descargarRecibo);
+router.get('/by-codigo/:codigo', verifyToken, descargarRecibo);
 router.post('/enviar-email', verifyToken, enviarEmail);
 
 export default router;

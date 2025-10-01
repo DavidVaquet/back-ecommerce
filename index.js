@@ -26,23 +26,34 @@ const __dirname = path.dirname(__filename);
 
 // Middlewares
 
-app.use(cors({
-  origin: 'http://localhost:5173',
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-}));
+const ALLOWED_ORIGINS = [
+  'https://iclubcatamarca.com',
+  'https://www.iclubcatamarca.com',
+  'http://localhost:5173'
+];
+
+const corsOptions = {
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+
+    if (ALLOWED_ORIGINS.includes(origin)) {
+      return cb(null, true);
+    }
+    return cb(new Error('Not allowed by CORS'));
+  },
+
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization','X-Requested-With'],
+  credentials: false,
+  exposedHeaders: ['Content-Disposition'],
+  optionsSuccessStatus: 204
+}
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
-// app.use((req, res, next) => {
-//   const origJson = res.json.bind(res);
-//   res.json = (...args) => {
-//     if (res.headersSent) {
-//       console.warn('⚠️ DOUBLE SEND', req.method, req.originalUrl, new Error().stack);
-//       return;
-//     }
-//     return origJson(...args);
-//   };
-//   next();
-// });
+app.set('trust proxy', 1);
+
 
 // Rutas
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));

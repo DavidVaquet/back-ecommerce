@@ -1,9 +1,11 @@
 import fs from "fs";
+import jwt from 'jsonwebtoken';
 import path from "path";
 import { fileURLToPath } from "url";
 import PdfPrinter from "pdfmake";
 import { enviarEmailConLink, enviarEmailNormal } from "../utils/enviarEmailAdjunto.js";
 import { url } from "inspector";
+const API_PUBLIC_URL = process.env.API_PUBLIC_URL || 'http://localhost:5002';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,17 +19,20 @@ export const generarReciboVenta = async (req, res) => {
       return res.status(400).json({ error: "Datos de la venta incompletos" });
     }
 
+    const PROJECT_ROOT = path.resolve(__dirname, '..');
+    const reciboDir = path.join(PROJECT_ROOT, 'recibos');
     const nombreArchivo = `recibo-${venta.codigo}.pdf`;
-    const filepath = path.join(__dirname, `../public/recibos`, nombreArchivo);
-    const urlPublica = `${req.protocol}://${req.get(
-      "host"
-    )}/public/recibos/${nombreArchivo}`;
+    const filepath = path.join(reciboDir, nombreArchivo);
+    
+    await fs.promises.mkdir(reciboDir, { recursive: true }) 
 
     if (fs.existsSync(filepath)) {
+       const token = jwt.sign({ codigo: venta.codigo}, process.env.JWT_PASSWORD, { expiresIn: '48h'})
        return res.json({
         ok: true,
         msg: "Archivo ya existente",
-        url: urlPublica,
+        descarga_auth_url: `${API_PUBLIC_URL}/api/recibos/by-codigo/${venta.codigo}`,
+        descarga_jwt_url: `${API_PUBLIC_URL}/api/recibos/link?token=${token}`
       });
     }
 
@@ -193,14 +198,17 @@ export const generarReciboVenta = async (req, res) => {
     pdfDoc.end();
 
     stream.on("finish", () => {
-      const urlPublica = `${req.protocol}://${req.get(
-        "host"
-      )}/recibos/${nombreArchivo}`;
+      const token = jwt.sign({
+        codigo: venta.codigo
+      }, process.env.JWT_PASSWORD, {
+        expiresIn: '7200m'
+      });
       res.json({
         ok: true,
         mensaje: "Recibo generado correctamente",
-        url: urlPublica,
-      });
+        descarga_auth_url: `${process.env.API_PUBLIC_URL}/api/recibos/by-codigo/${venta.codigo}`,
+        descarga_jwt_url: `${process.env.API_PUBLIC_URL}/api/recibos/link?token=${token}`
+        });
     });
 
     stream.on("error", (error) => {
@@ -215,9 +223,19 @@ export const generarReciboVenta = async (req, res) => {
 
 export const enviarRecibo = async (req, res) => {
   const venta = req.body;
-  const urlRecibo = `${process.env.APP_PUBLIC_URL}/recibo-${encodeURIComponent(venta.codigo)}.pdf`;
-  const logoUrl = `${process.env.APP_PUBLIC_URL}/public/logoIclub.png`
 
+  
+  if (!venta?.codigo || !venta.cliente?.email) {
+    return res.status(400).json({ msg: 'Datos insuficientes para enviar el email, falta el codigo de venta o el email del cliente'});
+  }
+
+
+  const apiBase = process.env.API_PUBLIC_URL;
+  const appBase = process.env.APP_PUBLIC_URL;
+  const logoUrl = `${process.env.APP_PUBLIC_URL}/public/logoIclub.png`;
+
+  const token = jwt.sign({ codigo: venta.codigo}, process.env.JWT_PASSWORD, { expiresIn: '72h' });
+  const reciboUrl = `${apiBase}/recibos/link?token=${token}`;
   const subject = `Tu recibo de compra Iclub - #${venta.codigo}`;
   const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 8px; padding: 24px;">
@@ -232,7 +250,7 @@ export const enviarRecibo = async (req, res) => {
         </p>
 
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${urlRecibo}" target="_blank"
+          <a href="${reciboUrl}" target="_blank"
             style="
               background-color: #1e40af;
               color: white;
@@ -276,13 +294,18 @@ export const enviarRecibo = async (req, res) => {
 
 export const descargarRecibo = async (req, res) => {
   try {
-    const { nombreArchivo } = req.params;
-    const filepath = path.join(__dirname, '../public/recibos', nombreArchivo);
+    const { codigo } = req.params;
+    const nombreArchivo = `recibo-${codigo}.pdf`;
+    const PROJECT_ROOT = path.join(__dirname, '..');
+    const RECIBOS_DIR = path.join(PROJECT_ROOT, 'recibos');
+    const filepath = path.join(RECIBOS_DIR, nombreArchivo);
 
     if (!fs.existsSync(filepath)) {
       return res.status(404).json({ msg: 'El archivo no existe' });
     }
 
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo}"`);
     return res.download(filepath);
   } catch (error) {
     console.error(error);
