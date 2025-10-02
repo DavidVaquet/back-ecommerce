@@ -12,3 +12,9 @@ export const validarCampos = (req, res, next) => {
     next();
 
 }
+
+
+const normalizeMulterBody = (req, res, next) => {
+  if (req.body && Object.getPrototypeOf(req.body) === null) req.body = { ...req.body };
+  next();
+};
