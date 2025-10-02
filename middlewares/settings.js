@@ -4,7 +4,7 @@ import { getSettingsFromCache, setSettingsCache } from "../utils/settingsCache.j
 export const loadSettings = async(req, res, next) => {
     try {
         const orgId = req.orgId;
-        console.log(orgId);
+        // console.log(orgId);
         if (!orgId) return res.status(400).json({ msg: "org_id requerido" });
         const cached = getSettingsFromCache(orgId);
 

@@ -18,7 +18,7 @@ export const verifyToken = async (req, res, next) => {
       nombre: decoded.nombre,
       raw: decoded
     };
-    console.log(decoded);
+    // console.log(decoded);
 
     req.orgId = decoded.org_id;
     req.sessionId = decoded.sid || decoded.sessionId || null;

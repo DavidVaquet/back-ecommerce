@@ -45,7 +45,7 @@ export const generator = {
             const result = await exportReport({ format: r.format, outPath: outDir, model });
 
             const stat = await fsp.stat(result.path);
-            console.log(stat);
+            // console.log(stat);
             await pool.query(`
                 UPDATE reports
                 SET status = 'ready',
@@ -190,7 +190,7 @@ export const historialReportes = async ({ limite, offset } = {}) => {
 
 export const fileStreamRes = async (res, report) => {
 
-    console.log(report);
+    // console.log(report);
     const absPath = path.resolve(report.file_path);
     const stat = await fsp.stat(absPath).catch(() => null);
 

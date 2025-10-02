@@ -60,12 +60,12 @@ export const userInformation = async (id) => {
 export const editUserInformation = async ({id, direccion, telefono, nombre, apellido, rol, activo}) => {
     const query = `
     UPDATE users
-    SET nombre = $1,
-    apellido = $2,
-    telefono = $3,
-    direccion = $4,
-    rol = $5,
-    activo = $6
+    SET nombre = COALESCE(NULLIF($1, ''), nombre),
+    apellido = COALESCE(NULLIF($2, ''), apellido),
+    telefono = COALESCE(NULLIF($3, ''), telefono),
+    direccion = COALESCE(NULLIF($4, ''), direccion),
+    rol = COALESCE(NULLIF($5, ''), rol),
+    activo = COALESCE(NULLIF($6, ''), activo)
     WHERE id = $7
     RETURNING id, nombre, apellido, telefono, direccion, rol, activo`;
 

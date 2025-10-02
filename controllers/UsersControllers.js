@@ -39,8 +39,11 @@ if (!apellido || !apellido.trim()) {
   return res.status(400).json({ msg: "El apellido es obligatorio." });
 }
 
-if (!rol) {
-  return res.status(400).json({ msg: "Debes seleccionar un rol." });
+if (!password) {
+  return res.status(400).json({ msg: 'Debes introducir una contraseña.'});
+}
+if (!email) {
+  return res.status(400).json({ msg: 'Debes introducir un correo.'});
 }
 
 
@@ -192,7 +195,7 @@ export const userInfo = async (req, res) => {
         .json({ msg: `No se encontró el usuario con el id ${req.usuario.id}` });
     }
 
-    const {password, password_no_hash, ...resto} = user;
+    const {password, password_no_hash, reset_pw_token, reset_pw_token_expires_at, ...resto} = user;
 
     return res.status(200).json(resto);
   } catch (error) {
@@ -530,6 +533,7 @@ export const forgotPassword = async (req, res) => {
     const rawToken = generarHashToken(30);
     const tokenHash = sha256(rawToken);
     const expire_at = new Date(Date.now() + 1000 * 60 * 30);
+    const API_PUBLIC_URL = process.env.API_PUBLIC_URL;
 
     await pool.query(`
       UPDATE users 
@@ -542,7 +546,7 @@ export const forgotPassword = async (req, res) => {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 8px; padding: 24px;">
           
           <div style="text-align: center; margin-bottom: 20px;">
-            <img src="http://localhost:5002/public/logoIclub.png" alt="iClub" style="width: 120px;" />
+            <img src="${API_PUBLIC_URL}/public/logoIclub.png" alt="iClub" style="width: 120px;" />
           </div>
 
           <h2 style="color: #1e40af;">¡Hola ${user.nombre}!</h2>
