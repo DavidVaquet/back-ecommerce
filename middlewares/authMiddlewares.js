@@ -50,8 +50,8 @@ const norm = (v) =>
 
 export const verifyAdmin = (req, res, next) => {
   const rol = norm(req.user?.rol ?? req.usuario?.rol);
-  if (!rol || !["admin", "superadmin"].includes(rol)) {
-    return res.status(403).json({ msg: "Acceso denegado: Se requiere rol de administrador." });
+  if (!rol || !["admin", "superadmin", 'vendedor', 'supervisor'].includes(rol)) {
+    return res.status(403).json({ msg: "No tienes permisos para realizar esta acción." });
   }
   next();
 };

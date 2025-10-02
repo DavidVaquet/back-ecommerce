@@ -5,10 +5,7 @@ import { activityRecent } from "./UsersControllers.js";
 export const getCategories = async (req, res) => {
 
     try {
-        let { activo } = req.query;
-        if (activo != null) {
-            activo = activo === 'true'
-        };
+        const { activo } = req.query;
         
         const categories = await getAllCategories({activo});
 
@@ -28,9 +25,6 @@ export const newCategory = async (req, res) => {
 
     const { nombre, descripcion, activo } = req.body;
 
-    if (!nombre || !activo) {
-        return res.status(401).json({error: 'Todos los campos son obligatorios.'})
-    };
 
     try {
         

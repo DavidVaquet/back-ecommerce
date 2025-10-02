@@ -7,10 +7,6 @@ export const addSubcategoria = async (req, res) => {
 
         const {nombre, descripcion, activo, categoria_id} = req.body;
     
-        if (!nombre || !categoria_id || isNaN(categoria_id)) {
-            return res.status(400).json({error: 'El nombre y la categoría son obligatorios, y la categoría debe ser un número válido.'});
-        }
-    
         const subcategoriaExistente = await findSubcategoryName(nombre);
     
         if (subcategoriaExistente){
@@ -29,10 +25,7 @@ export const addSubcategoria = async (req, res) => {
 
 export const getAllSubcategorias = async (req, res) => {
     try {
-        let { activo } = req.query;
-        if (activo != null) {
-            activo = activo === 'true'
-        };
+        const { activo } = req.query;
 
         const subcategories = await getAllSubcategories({ activo });
         

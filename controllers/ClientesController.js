@@ -7,9 +7,6 @@ export const crearCliente = async (req, res) => {
     try {
         const { nombre, apellido, email, telefono, fecha_nacimiento, tipo_cliente, es_vip, direccion, ciudad, pais, codigo_postal, notas } = req.body
         
-        if (!nombre || !apellido || !email || !telefono) {
-            return res.status(400).json({msg: 'Campos obligatorios: nombre, apellido, email, telefono.'})
-        }
 
         const existeCliente = await buscarCliente(email);
         if (existeCliente) {
@@ -29,10 +26,6 @@ export const clientesEstado = async (req, res) => {
     try {
         
          let { activo, limite, offset, search, origen, tipo_cliente } = req.query;
-
-        if (activo != null) {
-            activo = activo === 'true'
-        };
 
         const clienteOn = await getClientesEstado({activo, limite, offset, search, origen, tipo_cliente});
 
@@ -58,9 +51,6 @@ export const suspenderCliente = async (req, res) => {
         const { id } = req.params;
         const {email, estado } = req.body;
 
-        if (!email || typeof estado === 'undefined') {
-            return res.status(400).json({msg: 'Debes seleccionar un estado.'})
-        };
         const clienteExiste = await buscarCliente(email);
         if (!clienteExiste) {
             return res.status(400).json({msg: 'El cliente que deseas suspender, ya no existe!'});

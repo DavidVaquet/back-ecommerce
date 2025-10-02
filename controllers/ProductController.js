@@ -1,7 +1,7 @@
 import { createProduct,
         deleteProduct as deleteProductModel,
         getProducts, 
-        updateProductAndStock, 
+        updateProduct, 
         activarProduct, 
         publicarProductos, 
         eliminarProduct, 
@@ -38,9 +38,6 @@ export const addProduct = async (req, res) => {
                currency  } = req.body
         console.log(req.body);
         
-        if (!nombre || !precio || !subcategoria_id || !precio_costo ) {
-            return res.status(400).json({ error: 'Campos obligatorios: nombre, precio, subcategoria, precio costo.'});
-        };
 
         const imagenPrincipal = req.files?.image?.[0];
         let imagenOptimizadaUrl = null;
@@ -79,6 +76,7 @@ export const addProduct = async (req, res) => {
         
 
         const productId = newProduct.producto.id;
+        let costo_unitario = newProduct.producto.precio_costo;
         const cantidadMinimaGlobal = Number(settings?.inventory?.default_min_stock);
         const upserStock = await ensureStockRow(client, {
             product_id: productId,
@@ -119,7 +117,7 @@ export const addProduct = async (req, res) => {
                 usuario_id: req.usuario?.id ?? null,
                 motivo: 'Alta de producto',
                 document: 'ALTA',
-                costo_unitario: null,
+                costo_unitario,
                 metadata: JSON.stringify({ origen: 'addProduct'})
             })
 
@@ -157,14 +155,10 @@ export const editProducts = async (req, res) => {
 
     const { id } = req.params;
     const {nombre, descripcion, precio, subcategoria_id, marca, precio_costo, descripcion_corta} = req.body;
-    // console.log("Datos recibidos:", req.body);
-
-    if (!nombre?.trim() || typeof precio !== "number" || typeof subcategoria_id !== 'number' || isNaN(subcategoria_id) || typeof precio_costo !== "number") {
-        return res.status(400).json({ error: 'Debes insertar los campos: nombre, precio, subcategoria_id' });
-      }
+    
 
       try {
-        const productUpdated = await updateProductAndStock({id, nombre, descripcion, precio, subcategoria_id, marca, precio_costo, descripcion_corta});
+        const productUpdated = await updateProduct({id, nombre, descripcion, precio, subcategoria_id, marca, precio_costo, descripcion_corta});
         if ( !productUpdated ) {
             return res.status(400).json({ error: 'Producto no encontrado' });
 
@@ -181,13 +175,10 @@ export const editProducts = async (req, res) => {
 
 
 export const deleteProduct = async (req, res) => {
-
-    const { id } = req.params;
-
+    
+    
     try {
-        if (!id || isNaN(Number(id))) {
-            return res.status(400).json({ msg: 'ID inválido' });
-        }
+        const { id } = req.params;
         
         const productDelete = await deleteProductModel(id);
         if (!productDelete) {

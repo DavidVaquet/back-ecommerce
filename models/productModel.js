@@ -134,7 +134,7 @@ export const getPriceProduct = async (id) => {
   return rows[0];
 };
  
-export const updateProductAndStock = async ({
+export const updateProduct = async ({
   id,
   nombre,
   descripcion,
@@ -167,9 +167,6 @@ export const updateProductAndStock = async ({
 
     return rows[0];
 
-
-    // console.log("Producto actualizado:", productoActualizado);
-    // return productoActualizado;
   } catch (error) {
     await client.query("ROLLBACK");
     console.error(error);

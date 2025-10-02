@@ -30,23 +30,6 @@ import { enviarEmailConLink } from "../utils/enviarEmailAdjunto.js";
 export const newUser = async (req, res) => {
   const { nombre, email, password, rol, activo, telefono, apellido, direccion } = req.body;
 
-  // console.log(req.body);
-  if (!nombre || !nombre.trim()) {
-  return res.status(400).json({ msg: "El nombre es obligatorio." });
-}
-
-if (!apellido || !apellido.trim()) {
-  return res.status(400).json({ msg: "El apellido es obligatorio." });
-}
-
-if (!password) {
-  return res.status(400).json({ msg: 'Debes introducir una contraseña.'});
-}
-if (!email) {
-  return res.status(400).json({ msg: 'Debes introducir un correo.'});
-}
-
-
   try {
     const userExistente = await findUserByEmailID({email});
     if (userExistente) {
@@ -83,10 +66,6 @@ if (!email) {
 
 export const loginUsuario = async (req, res) => {
   const { email, password } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ msg: "Email y password son obligatorios." });
-  }
 
   try {
     const usuario = await findUserByEmailID({email});
@@ -154,9 +133,7 @@ export const editUser = async (req, res) => {
   try {
     const { nombre, apellido, direccion, telefono } = req.body;
     // console.log(req.body);
-    if (!nombre || !apellido || !direccion || !telefono) {
-      return res.status(400).json({ msg: "Todos los campos son obligatorios" });
-    }
+    
     const userEdit = await editUserInformation({
       id: req.usuario.id,
       direccion,
@@ -210,18 +187,6 @@ export const adminEditUser = async (req, res) => {
     const { nombre, apellido, rol, activo } = req.body
     const idParsed = parseInt(id);
     const estadoParsed = activo === 'activo' ? true : false;
-
-    if (!nombre || !nombre.trim()) {
-      return res.status(400).json({ msg: "El nombre es obligatorio." });
-    }
-
-    if (!apellido || !apellido.trim()) {
-      return res.status(400).json({ msg: "El apellido es obligatorio." });
-    }
-
-    if (!rol) {
-      return res.status(400).json({ msg: "Debes seleccionar un rol." });
-    }
 
     if (activo === undefined || activo === null) {
       return res.status(400).json({ msg: "Debes seleccionar un estado." });
@@ -611,12 +576,6 @@ export const forgotPassword = async (req, res) => {
 export const resetPassword = async (req, res) => {
   try {
     const { token, password } = req.body;
-
-    if (!token || !password) {
-      return res.status(400).json({ msg: 'Token y nueva contraseña son requeridos.'});
-    };
-    
-    if (password.length < 8) return res.status(400).json({ msg: 'La contraseña debe tener al menos 8 caracteres.'});
 
     const tokenHash = sha256(token);
 
