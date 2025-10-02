@@ -57,23 +57,47 @@ export const userInformation = async (id) => {
     return result.rows[0];
 };
 
-export const editUserInformation = async ({id, direccion, telefono, nombre, apellido, rol, activo}) => {
-    const query = `
+export const editUserInformation = async ({
+  id, direccion, telefono, nombre, apellido, rol, activo
+}) => {
+  
+  const emptyToNull = (v) => (v === '' || v === undefined ? null : v);
+
+  let activoParam = null;
+  if (typeof activo === 'boolean') {
+    activoParam = activo;
+  } else if (typeof activo === 'string') {
+    if (activo.toLowerCase() === 'true')  activoParam = true;
+    else if (activo.toLowerCase() === 'false') activoParam = false;
+    else activoParam = null;
+  } 
+
+  const query = `
     UPDATE users
-    SET nombre = COALESCE(NULLIF($1, ''), nombre),
-    apellido = COALESCE(NULLIF($2, ''), apellido),
-    telefono = COALESCE(NULLIF($3, ''), telefono),
-    direccion = COALESCE(NULLIF($4, ''), direccion),
-    rol = COALESCE(NULLIF($5, ''), rol),
-    activo = COALESCE(NULLIF($6, ''), activo)
+    SET
+      nombre    = COALESCE(NULLIF($1, ''), nombre),
+      apellido  = COALESCE(NULLIF($2, ''), apellido),
+      telefono  = COALESCE(NULLIF($3, ''), telefono),
+      direccion = COALESCE(NULLIF($4, ''), direccion),
+      rol       = COALESCE(NULLIF($5, ''), rol),
+      activo    = COALESCE($6, activo)
     WHERE id = $7
-    RETURNING id, nombre, apellido, telefono, direccion, rol, activo`;
+    RETURNING id, nombre, apellido, telefono, direccion, rol, activo
+  `;
 
-    const values = [nombre, apellido, telefono, direccion, rol, activo, id];
-    const { rows } = await pool.query(query, values);
+  const values = [
+    emptyToNull(nombre),
+    emptyToNull(apellido),
+    emptyToNull(telefono),
+    emptyToNull(direccion),
+    emptyToNull(rol),
+    activoParam, 
+    id,
+  ];
 
-    return rows[0];
-}
+  const { rows } = await pool.query(query, values);
+  return rows[0];
+};
 
 export const deleteUser = async (id) => {
 
