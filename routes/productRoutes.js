@@ -20,6 +20,7 @@ router.post('/newProduct', upload.fields([
     body('cantidad_minima').optional().isInt({min: 0}).withMessage('La cantidad mínima debe ser mayor o igual a 0').bail().toInt(),
     body('estado').exists({ values: ['', null] }).withMessage('El campo estado es obligatorio').bail().isInt({ min: 0, max: 1 }).toInt(),
     body('marca').exists({ values: 'falsy' }).withMessage('El campo marca es obligatorio').bail(),
+    body('currency').exists({ values: 'falsy' }).withMessage('Debes seleccionar una moneda').bail(),
     validarCampos
 ], addProduct);
 

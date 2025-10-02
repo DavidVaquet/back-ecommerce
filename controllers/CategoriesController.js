@@ -37,7 +37,7 @@ export const newCategory = async (req, res) => {
         const nuevaCategoria = await createCategory({nombre, descripcion, activo});
         await activityRecent(req, {estado: 'Exitoso', accion: 'Creo una categoría.'});
 
-        return res.status(200).json({ msg: 'Categoria creada exitosamente', categoria: nuevaCategoria});
+        return res.status(200).json({ msg: 'Categoria creada exitosamente', ok: true, categoria: nuevaCategoria});
 
     } catch (error) {
         console.error(error);
