@@ -15,6 +15,7 @@ function humanFileSize(bytes) {
 }
 // ---------------------------------------
 
+const REPORTDIR = process.env.REPORTDIR ?? 'storage/reports';
 export const generator = {
     async processOne(id) {
         const { rows } = await pool.query(`
@@ -38,7 +39,7 @@ export const generator = {
 
             const ts = new Date().toISOString().replace(/[:.]/g,'-');
             const base = `${model.title || r.type}_${ts}.${r.format}`;
-            const outDir = path.join(process.cwd(), process.env.REPORTDIR, base);
+            const outDir = path.join(process.cwd(), REPORTDIR, base);
             await fsp.mkdir(path.dirname(outDir), { recursive: true });
             
             // const html = r.format === 'pdf' ? renderGenericHTML(model) : null;

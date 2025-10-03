@@ -17,8 +17,8 @@ import settingsRoutes from './routes/settingsRoutes.js';
 import jwt from 'jsonwebtoken';
 import path from 'path';
 
-const app = express();
 dotenv.config();
+const app = express();
 
 import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);

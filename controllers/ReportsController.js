@@ -182,7 +182,7 @@ export const getReports = async (req, res) => {
 export const borrarReporte = async (req, res) => {
 
     try {
-        const id = Number(req.params.id);
+        const id = req.params.id;
         if (!id) return res.status(400).json({ msg: 'Id inválido.'});
 
         const {deleted, reporte} = await deleteReport(id);
