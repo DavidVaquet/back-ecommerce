@@ -119,7 +119,7 @@ export const getReport = async (req, res) => {
 export const downloadReport = async (req, res) => {
     try {
         
-        const id = Number(req.params.id);
+        const id = req.params.id;
         const report = await getReportById(id);
 
         if (!report) throw new Error('No se encontró el reporte.');;
