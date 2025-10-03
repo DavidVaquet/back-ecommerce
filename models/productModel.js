@@ -346,6 +346,7 @@ export const statsProductos = async ({ lowStockMin }) => {
   SELECT
   COUNT(*) as total_productos,
   COUNT(*) FILTER(WHERE p.estado = 1) as productos_activos,
+  COUNT(*) FILTER(WHERE p.estado = 0) as productos_inactivos,
   COUNT(*) FILTER(WHERE COALESCE(s.cantidad, 0) = 0) as productos_sin_stock,
   COUNT(*) FILTER(WHERE COALESCE(s.cantidad, 0) > 0 AND COALESCE(s.cantidad, 0) < COALESCE($1::int, 10)) as producto_bajo_stock
   FROM products p
@@ -356,6 +357,7 @@ export const statsProductos = async ({ lowStockMin }) => {
   return {
     total: Number(row.total_productos),
     activos: Number(row.productos_activos),
+    inactivos: Number(row.productos_inactivos),
     sin_stock: Number(row.productos_sin_stock),
     bajo_stock: Number(row.producto_bajo_stock)
   };

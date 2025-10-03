@@ -14,7 +14,7 @@ export const addSubcategoria = async (req, res) => {
         }
         const addSubcategory = await newSubcategory({nombre, descripcion, activo, categoria_id});
         await activityRecent(req, {estado: 'Exitoso', accion: 'Creó una subcategoría.'});
-        return res.status(201).json(addSubcategory);
+        return res.status(201).json({ ok: true, msg: 'Subcategoría creada con éxito'});
     } catch (error) {
         console.error(error);
         await activityRecent(req, {estado: 'Fallido', accion: 'Falló al crear una subcategoría.'});
