@@ -14,14 +14,16 @@ import stockRoutes from './routes/stockRoutes.js';
 import estadisticasRoutes from './routes/estadisticasRoutes.js';
 import reportesRoutes from './routes/reportesRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
-import printJobs from './routes/printJobs.js';
+import printRouter from './routes/printRouter.js';
 import jwt from 'jsonwebtoken';
 import path from 'path';
+import { clients, pendingJobs } from './routes/printRouter.js';
 
 dotenv.config();
 const app = express();
 
 import { fileURLToPath } from 'url';
+import { setupAgentWS } from './ws/agent.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -81,7 +83,6 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use('/public', express.static(path.join(__dirname, 'public')));
 app.use('/api/products', productRoutes);
 app.use('/api/stock', stockRoutes);
-app.use('/api/print', printJobs);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/subcategories', subcategoriesRoutes);
 app.use('/api/users', userRoutes);
@@ -92,14 +93,17 @@ app.use('/api/impresora', impresoraRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/estadisticas', estadisticasRoutes);
 app.use('/api/reportes', reportesRoutes);
+app.use('/api/print', printRouter);
 app.get('/generate-test-token', (req, res) => {
   const token = jwt.sign({ id: 1, rol: 'admin' }, process.env.JWT_PASSWORD, { expiresIn: '30d' });
   res.json({ token });
 });
 
-app.listen(process.env.PORT, () => {
+const server = app.listen(process.env.PORT, () => {
     console.log('Servidor corriendo en el puerto', process.env.PORT);
 });
+
+setupAgentWS(server, clients, pendingJobs);
 
 try {
     const result = await pool.query('SELECT NOW()');
