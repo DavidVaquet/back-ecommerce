@@ -1,4 +1,4 @@
-import pool from '../db/pool.js';
+import pool from '../config/db.js';
 import { buildTSPLMinimal } from '../utils/tsplBuild.js';
 
 
