@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { body, query, param } from 'express-validator';
 import { createPrintJobMinimal, listPrintJobs, getPrintJob } from '../controllers/PrintJobs.js';
-import { validarCampos } from '../middlewares/validarCampos.js';
 import { verifyToken } from '../middlewares/authMiddlewares.js';
+import { validarCampos } from '../utils/validaciones.js';
 const router = Router();
 
 router.post('/',
