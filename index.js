@@ -14,6 +14,7 @@ import stockRoutes from './routes/stockRoutes.js';
 import estadisticasRoutes from './routes/estadisticasRoutes.js';
 import reportesRoutes from './routes/reportesRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
+import printJobs from './routes/printJobs.js';
 import jwt from 'jsonwebtoken';
 import path from 'path';
 
@@ -80,6 +81,7 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use('/public', express.static(path.join(__dirname, 'public')));
 app.use('/api/products', productRoutes);
 app.use('/api/stock', stockRoutes);
+app.use('/api/print', printJobs);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/subcategories', subcategoriesRoutes);
 app.use('/api/users', userRoutes);
