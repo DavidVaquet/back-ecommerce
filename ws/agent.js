@@ -8,8 +8,11 @@ export function setupAgentWS(server, clients, pendingJobs) {
     const clientId = url.searchParams.get('clientId');
     const token = url.searchParams.get('token');
 
-    if (!clientId || !token) {
-      ws.close(4001, 'Missing clientId/token');
+     const expectedToken = process.env[`AGENT_TOKEN_${clientId.toUpperCase().replace(/-/g, '_')}`];
+
+    if (!clientId || !token || token !== expectedToken) {
+      ws.close(4003, 'Unauthorized');
+      console.warn(`[WS] unauthorized connection for ${clientId}`);
       return;
     }
 
