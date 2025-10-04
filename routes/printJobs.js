@@ -25,7 +25,7 @@ router.get('/',
 );
 
 router.get('/:id',
-  requireAuth,
+  verifyToken,
   param('id').isUUID(),
   validarCampos,
   getPrintJob
