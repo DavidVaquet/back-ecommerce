@@ -1,6 +1,6 @@
 import express from 'express';
 import { v4 } from 'uuid';
-import { printApiKey } from '../middlewares/printKey';
+import { printApiKey } from '../middlewares/printKey.js';
 
 export const clients = new Map();
 export const pendingJobs = new Map(); 
