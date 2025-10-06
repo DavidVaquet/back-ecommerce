@@ -17,7 +17,7 @@ export function buildEtiquetaTSPL(producto, ancho = 60, alto = 30, copias = 1) {
     // --- CÓDIGO DE BARRAS (ancho, centrado) ---
     // Tipo 128, altura 70, centrado aproximadamente, sin texto visible debajo (readable=0)
     `BARCODE 90,80,"128",70,0,0,3,6,"${codigo}"`,
-    `TEXT 175,155,"3",0,1.5,1.5,"${codigo}"`,
+    `TEXT 182,155,"3",0,1.5,1.5,"${codigo}"`,
     // --- PRECIO (debajo del código, centrado) ---
     // Fuente 3, tamaño medio
     `TEXT 200,200,"4",0,1,1,"${precio}"`,
