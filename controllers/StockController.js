@@ -36,6 +36,7 @@ export const registrarMovimientoStock = async (req, res) => {
         const mt = await movementType(client, movement_type);
 
         if (!mt) {
+            await client.query('ROLLBACK')
             return res.status(400).json({ msg: `El tipo de movimiento ${mt} no esta especificado.` });
         }
 
@@ -48,7 +49,11 @@ export const registrarMovimientoStock = async (req, res) => {
         if (!locked) throw new Error(`No existe fila para el producto ${productoId}`);
         const stockAnterior = locked.cantidad;
 
+        const pv = (precio_venta === '' || precio_venta == null) ? null : Number(precio_venta);
+        const cu = (costo_unitario === '' || costo_unitario == null) ? null : Number(costo_unitario);
 
+        if (pv != null && !Number.isFinite(pv)) return res.status(400).json({msg: 'Precio de venta inválido'});
+        if (cu != null && !Number.isFinite(cu)) return res.status(400).json({msg: 'Cost unitario inválido'});
         
         const qty   = (cantidad === '' || cantidad == null) ? null : Number(cantidad);
         const targ  = (stock_objetivo === '' || stock_objetivo == null) ? null : Number(stock_objetivo);
@@ -59,18 +64,20 @@ export const registrarMovimientoStock = async (req, res) => {
         
         if (targ != null) {
             if (!Number.isInteger(targ) || targ < 0) {
+            await client.query('ROLLBACK')
             return res.status(400).json({ msg: 'stock_objetivo inválido (entero ≥ 0).' });
             }
             delta = targ - stockAnterior; 
         } else {
-            // Alternativa: delta firmado en "cantidad"
             if (qty == null || !Number.isInteger(qty) || qty === 0) {
+            await client.query('ROLLBACK')
             return res.status(400).json({ msg: 'Para ajuste enviá stock_objetivo o una cantidad (delta) entera ≠ 0.' });
             }
             delta = qty; 
         }
 
         if (delta === 0) {
+            await client.query('ROLLBACK')
             return res.status(400).json({ msg: 'Ajuste sin cambios.' });
         }
 
@@ -80,6 +87,7 @@ export const registrarMovimientoStock = async (req, res) => {
         } else {
         
         if (qty == null || !Number.isInteger(qty) || qty <= 0) {
+            await client.query('ROLLBACK')
             return res.status(400).json({ msg: 'La cantidad debe ser un entero > 0.' });
         }
         rowDirection = direction;                    
@@ -88,6 +96,7 @@ export const registrarMovimientoStock = async (req, res) => {
         }
 
         if (stockAnterior + delta < 0) {
+        await client.query('ROLLBACK')
         return res.status(400).json({ msg: 'Stock insuficiente para realizar el movimiento.' });
         }
 
@@ -103,12 +112,22 @@ export const registrarMovimientoStock = async (req, res) => {
             stock_actual: stockActual,
             usuario_id: req.usuario?.id,
             motivo: motivo,
-            precio_venta: Number(precio_venta) ?? 0,
+            precio_venta: pv,
             cliente,
             document,
-            costo_unitario,
+            costo_unitario: cu,
             metadata: JSON.stringify({ origen: 'registrarMovimientoStock'}
         )});
+
+        if (pv != null || cu != null) {
+            await client.query(
+                `UPDATE products
+                SET precio       = COALESCE($1, precio),
+                    precio_costo = COALESCE($2, precio_costo)
+                WHERE id = $3`,
+                [pv, cu, productoId]
+            );
+            }
 
         await client.query('COMMIT');
         await activityRecent(req, {estado: 'Exitoso', accion: 'Registró un movimiento de stock.'});
