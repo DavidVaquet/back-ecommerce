@@ -1,7 +1,9 @@
+import { formatearPesos } from "./numeros";
+
 export function buildEtiquetaTSPL(producto, ancho = 60, alto = 30, copias = 1) {
   const nombre = (producto?.nombre || '').toUpperCase();
   const codigo = producto?.barcode || producto?.codigo || '';
-  const precio = producto?.precio != null ? `$${Number(producto.precio)}` : '';
+  const precio = producto?.currency === 'ARS' ? `${formatearPesos(producto.precio)}` : `US$${producto.precio}`;
 
   const tspl = [
     `SIZE ${ancho} mm,${alto} mm`,
@@ -10,11 +12,11 @@ export function buildEtiquetaTSPL(producto, ancho = 60, alto = 30, copias = 1) {
 
     // --- NOMBRE DEL PRODUCTO (centrado y grande) ---
     // Fuente 4 más visible, más grande y centrado verticalmente en el tercio superior
-    `TEXT 100,20,"4",0,1.5,1.5,"${nombre}"`,
+    `TEXT 80,20,"4",0,1.5,1.5,"${nombre}"`,
 
     // --- CÓDIGO DE BARRAS (ancho, centrado) ---
     // Tipo 128, altura 70, centrado aproximadamente, sin texto visible debajo (readable=0)
-    `BARCODE 100,90,"128",70,1,0,3,6,"${codigo}"`,
+    `BARCODE 100,80,"128",70,1,0,3,6,"${codigo}"`,
 
     // --- PRECIO (debajo del código, centrado) ---
     // Fuente 3, tamaño medio
