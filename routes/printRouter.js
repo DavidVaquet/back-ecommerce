@@ -8,7 +8,7 @@ export const pendingJobs = new Map();
 const router = express.Router();
 
 router.post('/', printApiKey, async (req, res) => {
-    const { clientId, data, mode, printer, shareHost, shareName, producto, ancho, alto, copias } = req.body || {};
+    const { data, mode, printer, shareHost, shareName, producto, ancho, alto, copias } = req.body || {};
     if (!producto) {
     return res.status(400).json({ msg: 'Falta el producto que contiene el código de barra.' });
     }
@@ -19,7 +19,9 @@ router.post('/', printApiKey, async (req, res) => {
     if (!alto) return res.status(400).json({ msg: 'Debes especificar el alto de la etiqueta'});
     if (!copias) return res.status(400).json({ msg: 'Debes especificar la cantidad de copias'});
 
-    const tsplData = producto ? buildEtiquetaTSPL(producto, ancho, alto, copias) : data; 
+    const tsplData = producto ? buildEtiquetaTSPL(producto, ancho, alto, copias) : data;
+
+    const clientId = process.env.DEFAULT_CLIENT_ID;
 
     const job = {
         id: v4(),
