@@ -137,6 +137,8 @@ export const registrarVenta = async (req, res) => {
                 usuario_id: req.usuario?.id || null,
                 motivo: 'Venta de producto',
                 document: venta.document,
+                costo_unitario: Number(item.precio_costo),
+                precio_venta: Number(item.precio),
                 metadata: JSON.stringify({ origen: 'registrarVenta' })
             });
         }

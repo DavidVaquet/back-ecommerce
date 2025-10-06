@@ -7,9 +7,9 @@ export function buildEtiquetaTSPL(producto, ancho = 60, alto = 30, copias = 1) {
     `SIZE ${ancho} mm,${alto} mm`,
     'GAP 3 mm,0 mm',
     'CLS',
-    `TEXT 50,50,"3",0,1,1,"${nombre}"`,
-    `TEXT 50,90,"3",0,1,1,"${codigo}"`,
-    `TEXT 50,130,"3",0,1,1,"${precio}"`,
+    'TEXT 60,30,"4",0,1,1,"' + nombre + '"',
+    'BARCODE 30,70,"128",80,1,0,2,3,"' + codigo + '"',
+    'TEXT 100,170,"3",0,1,1,"' + precio + '"',
     `PRINT ${copias}`
   ].join('\n') + '\n';
 
