@@ -14,11 +14,11 @@ export function buildEtiquetaTSPL(producto, ancho = 60, alto = 30, copias = 1) {
 
     // --- CÓDIGO DE BARRAS (ancho, centrado) ---
     // Tipo 128, altura 70, centrado aproximadamente, sin texto visible debajo (readable=0)
-    `BARCODE 120,70,"128",70,1,0,4,8,"${codigo}"`,
+    `BARCODE 100,70,"128",70,1,0,3,6,"${codigo}"`,
 
     // --- PRECIO (debajo del código, centrado) ---
     // Fuente 3, tamaño medio
-    `TEXT 200,230,"3",0,1,1,"${precio}"`,
+    `TEXT 240,200,"3",0,1,1,"${precio}"`,
 
     `PRINT ${copias}`
   ].join('\n') + '\n';
