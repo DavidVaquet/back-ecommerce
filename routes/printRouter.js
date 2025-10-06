@@ -1,21 +1,30 @@
 import express from 'express';
 import { v4 } from 'uuid';
 import { printApiKey } from '../middlewares/printKey.js';
+import { buildEtiquetaTSPL } from '../utils/tsplBuild.js';
 
 export const clients = new Map();
 export const pendingJobs = new Map(); 
 const router = express.Router();
 
 router.post('/', printApiKey, async (req, res) => {
-    const { clientId, data, mode, printer, shareHost, shareName } = req.body || {};
-    if (!clientId || !data || !mode) {
-    return res.status(400).json({ msg: 'Faltan campos: clientId, data, mode' });
+    const { clientId, data, mode, printer, shareHost, shareName, producto, ancho, alto, copias } = req.body || {};
+    if (!producto) {
+    return res.status(400).json({ msg: 'Falta el producto que contiene el código de barra.' });
     }
+
+    if (!mode) return res.status(400).json({ msg: 'Debes especificar el modo de impresión'});
+
+    if (!ancho) return res.status(400).json({ msg: 'Debes especificar el ancho de la etiqueta'});
+    if (!alto) return res.status(400).json({ msg: 'Debes especificar el alto de la etiqueta'});
+    if (!copias) return res.status(400).json({ msg: 'Debes especificar la cantidad de copias'});
+
+    const tsplData = producto ? buildEtiquetaTSPL(producto, ancho, alto, copias) : data; 
 
     const job = {
         id: v4(),
         type: 'print',
-        payload: { data, mode, printer, shareHost, shareName }
+        payload: { data: tsplData, mode, printer, shareHost, shareName }
     };
 
     const ws = clients.get(clientId);
