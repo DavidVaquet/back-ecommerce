@@ -1,7 +1,7 @@
 export function buildEtiquetaTSPL(producto, ancho = 60, alto = 30, copias = 1) {
   const nombre = (producto?.nombre || '').toUpperCase();
   const codigo = producto?.barcode || producto?.codigo || '';
-  const precio = producto?.precio != null ? `$${Number(producto.precio).toFixed(2)}` : '';
+  const precio = producto?.precio != null ? `$${Number(producto.precio)}` : '';
 
   const tspl = [
     `SIZE ${ancho} mm,${alto} mm`,
@@ -14,7 +14,7 @@ export function buildEtiquetaTSPL(producto, ancho = 60, alto = 30, copias = 1) {
 
     // --- CÓDIGO DE BARRAS (ancho, centrado) ---
     // Tipo 128, altura 70, centrado aproximadamente, sin texto visible debajo (readable=0)
-    `BARCODE 100,70,"128",70,1,0,3,6,"${codigo}"`,
+    `BARCODE 100,90,"128",70,1,0,3,6,"${codigo}"`,
 
     // --- PRECIO (debajo del código, centrado) ---
     // Fuente 3, tamaño medio
