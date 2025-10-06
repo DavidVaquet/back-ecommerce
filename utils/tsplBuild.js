@@ -10,11 +10,11 @@ export function buildEtiquetaTSPL(producto, ancho = 60, alto = 30, copias = 1) {
 
     // --- NOMBRE DEL PRODUCTO (centrado y grande) ---
     // Fuente 4 más visible, más grande y centrado verticalmente en el tercio superior
-    `TEXT 150,20,"4",0,1.5,1.5,"${nombre}"`,
+    `TEXT 120,20,"4",0,1.5,1.5,"${nombre}"`,
 
     // --- CÓDIGO DE BARRAS (ancho, centrado) ---
     // Tipo 128, altura 70, centrado aproximadamente, sin texto visible debajo (readable=0)
-    `BARCODE 40,70,"128",70,1,0,2,4,"${codigo}"`,
+    `BARCODE 70,70,"128",70,1,0,2,4,"${codigo}"`,
 
     // --- PRECIO (debajo del código, centrado) ---
     // Fuente 3, tamaño medio
