@@ -1,4 +1,4 @@
-import { formatearPesos } from "./numeros";
+import { formatearPesos } from "./numeros.js";
 
 export function buildEtiquetaTSPL(producto, ancho = 60, alto = 30, copias = 1) {
   const nombre = (producto?.nombre || '').toUpperCase();
