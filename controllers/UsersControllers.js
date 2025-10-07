@@ -53,6 +53,8 @@ export const newUser = async (req, res) => {
       org_id: ORG_ID
     });
     delete nuevoUsuario.password;
+    delete nuevoUsuario.passwordNoHash;
+
 
     return res.status(201).json({
       msg: "Usuario creado con exito.",

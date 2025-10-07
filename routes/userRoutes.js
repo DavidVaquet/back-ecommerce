@@ -10,7 +10,7 @@ router.post('/register', [
     body('nombre').exists({ values: 'falsy'}).withMessage('El campo nombre es obligatorio').bail(),
     body('apellido').exists({ values: 'falsy'}).withMessage('El apellido nombre es obligatorio').bail(),
     body('email').exists({ values: 'falsy' }).withMessage('Debes introducir un email').bail().isEmail().withMessage('Debes introducir un email válido').bail(),
-    body('password)').exists({ values: ['', null] }).withMessage('El campo contraseña es obligatorio').bail().isLength({ min: 6 }).withMessage('La contraseña debe tener al menos 6 caracteres').bail(),
+    body('password').exists({ values: ['', null] }).withMessage('El campo contraseña es obligatorio').bail().isLength({ min: 6 }).withMessage('La contraseña debe tener al menos 6 caracteres').bail(),
     validarCampos
 ], newUser);
 
