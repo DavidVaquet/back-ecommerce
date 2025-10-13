@@ -281,7 +281,8 @@ export const eliminarProducto = async (req, res) => {
 
 export const getByBarcode = async (req, res) => {
   try {
-    const code = String(req.params.code || "").trim();
+    const raw = String(req.params.code || '');
+    const code = raw.replace(/[\x00-\x1F\x7F]/g, '').trim();
     if (!code) return res.status(400).json({ msg: "Código inválido" });
 
     const { rows } = await pool.query(`
