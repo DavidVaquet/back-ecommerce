@@ -1,4 +1,4 @@
-import { getAllCategories, findCategoryByName, createCategory, updateCategory, toggleCategoryState } from "../models/categoriesModel.js";
+import { getAllCategories, findCategoryByName, createCategory, updateCategory, toggleCategoryState, getCategoriasSubcategorias } from "../models/categoriesModel.js";
 import { activityRecent } from "./UsersControllers.js";
 
 
@@ -103,3 +103,16 @@ export const categoryState = async (req, res) => {
         return res.status(500).json({ msg: 'Error al actualizar el estado de la categoria.'});
     }
 };
+
+export const obtenerCategoriasSubcategorias = async (req, res) => {
+    try {
+        const { limit, offset, search, visible, estado, visibleSub, estadoSub } = req.query;
+        const categorias = await getCategoriasSubcategorias({limit, offset, search, visible, estado, visibleSub, estadoSub});
+
+        return res.json(categorias);
+
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ msg: 'Error al obtener las categorias.' });
+    }
+}
