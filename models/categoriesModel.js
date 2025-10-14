@@ -209,3 +209,28 @@ export const getCategoriasSubcategorias = async ({ limit, offset, search, visibl
 
 }
 
+
+export const statsCategoriaSubcategorias = async () => {
+    const sql = `
+    SELECT
+    COUNT(c.*) as total_categorias,
+    COUNT(*) FILTER(WHERE c.activo IS TRUE) AS categorias_activas,
+    COUNT(*) FILTER(WHERE c.activo IS FALSE) AS categorias_inactivas,
+    COUNT(sc.*) FILTER(WHERE sc.activo IS TRUE) AS subcategorias_activas,
+    COUNT(sc.*) FILTER(WHERE sc.activo IS FALSE) AS subcategorias_inactivas
+    FROM categories c
+    LEFT JOIN subcategories sc ON sc.categoria_id = c.id
+    `;
+
+    const { rows } = await pool.query(sql);
+    const r = rows[0] || {};
+
+    return {
+        categorias_activas: Number(r?.categorias_activas ?? 0),
+        categorias_inactivas: Number(r?.categorias_inactivas ?? 0),
+        subcategorias_activas: Number(r?.subcategorias_activas ?? 0),
+        subcategorias_inactivas: Number(r?.subcategorias_inactivas ?? 0),
+        total_categorias: Number(r?.total_categorias ?? 0)
+    }
+};
+

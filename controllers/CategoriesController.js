@@ -1,4 +1,4 @@
-import { getAllCategories, findCategoryByName, createCategory, updateCategory, toggleCategoryState, getCategoriasSubcategorias } from "../models/categoriesModel.js";
+import { getAllCategories, findCategoryByName, createCategory, updateCategory, toggleCategoryState, getCategoriasSubcategorias, statsCategoriaSubcategorias } from "../models/categoriesModel.js";
 import { activityRecent } from "./UsersControllers.js";
 
 
@@ -116,3 +116,15 @@ export const obtenerCategoriasSubcategorias = async (req, res) => {
         return res.status(500).json({ msg: 'Error al obtener las categorias.' });
     }
 }
+
+
+export const statsCategorias = async (req, res) => {
+    try {
+        const categorias = await statsCategoriaSubcategorias();
+
+        return res.json(categorias);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ msg: 'Error al obtener los stats de categorias.'});
+    };
+};

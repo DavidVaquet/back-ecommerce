@@ -1,5 +1,5 @@
 import express from 'express';
-import { getCategories, newCategory, editCategory, categoryState, obtenerCategoriasSubcategorias } from '../controllers/CategoriesController.js';
+import { getCategories, newCategory, editCategory, categoryState, obtenerCategoriasSubcategorias, statsCategorias } from '../controllers/CategoriesController.js';
 import { verifyAdmin, verifyRole, verifyToken, requireActiveSession, touchSession } from '../middlewares/authMiddlewares.js';
 import { validarCampos } from '../utils/validaciones.js';
 import { body, query } from 'express-validator';
@@ -29,6 +29,7 @@ router.post('/createCategory', verifyToken, requireActiveSession, touchSession, 
 router.put('/editCategory/:id', verifyToken,  requireActiveSession, touchSession, verifyAdmin, editCategory );
 router.patch('/toggleCategoryState/:id', verifyToken, requireActiveSession, touchSession, verifyAdmin, categoryState);
 router.get('/get-categories-subcategories', verifyToken, verifyAdmin, obtenerCategoriasSubcategorias);
+router.get('/get-stats-categories-subcategories', verifyToken, verifyAdmin, statsCategorias);
 
 
 export default router;
