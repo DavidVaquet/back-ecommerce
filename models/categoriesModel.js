@@ -45,17 +45,51 @@ export const findCategoryByName = async (nombre) => {
 };
 
 
-export const updateCategory = async (id, nombre, descripcion) => {
+export const updateCategory = async ({id, nombre, descripcion, visible, activo}) => {
 
-    const query = `UPDATE categories SET nombre = $1, descripcion = $2 WHERE id = $3 RETURNING *;`;
-    const values = [nombre, descripcion, id];
+    const sets = [];
+    const params = [];
+    let i = 1;
 
-    const result = await pool.query(query, values);
+    if (nombre != null) {
+        sets.push(`nombre = $${i++}`);
+        params.push(nombre)
+    }
+
+    if (descripcion != null) {
+        sets.push(`descripcion = $${i++}`);
+        params.push(descripcion);
+    }
+
+    if (visible != null) {
+        sets.push(`visible = $${i++}`);
+        params.push(Number(visible))
+    }
+
+    if (activo != null) {
+      sets.push(`activo = $${i++}`);
+      params.push(activo)
+    }
+
+    if (sets.length === 0) {
+      return { changed: false };
+    }
+
+    params.push(id);
+
+    const query = `UPDATE 
+    categories 
+    SET ${sets.join(', ')}
+    WHERE id = $${i} 
+    RETURNING *;`;
+
+    const result = await pool.query(query, params);
     return result.rows[0];
+    
 };
 
 
-export const toggleCategoryState = async (id, activo) => {
+export const toggleCategoryState = async ({id, activo}) => {
 
     const query = `UPDATE categories SET activo = $1 WHERE id = $2 RETURNING *;`;
     const values = [activo, id];
@@ -65,161 +99,210 @@ export const toggleCategoryState = async (id, activo) => {
 
 };
 
+export const deleteCategory = async(id) => {
 
-export const getCategoriasSubcategorias = async ({ limit, offset, search, visible, estado, visibleSub, estadoSub } = {}) => {
+    const query = `DELETE FROM categories WHERE id = $1`;
+    const values = [id];
 
-    const whereCat = [];
-    const whereSubcat = [];
-    const params = [];
-    let i = 1;
-
-    if (visible != null) {
-        whereCat.push(`c.visible = $${i}`);
-        params.push(Number(visible));
-        i++;
-    };
-
-    if (estado != null && String(estado).trim() !== "") {
-        whereCat.push(`c.activo = $${i}`);
-        params.push(estado);
-        i++;
-    };
-
-    if (visibleSub != null) {
-        whereSubcat.push(`sc.visible = $${i}`);
-        params.push(Number(visibleSub));
-        i++;
-    };
-
-    if (estadoSub != null && String(estadoSub).trim() !== "") {
-        whereSubcat.push(`sc.activo = $${i}`);
-        params.push(estadoSub);
-        i++;
-    };
-
-    let searchSql = "";
-    if (search != null && search.trim() != '') {
-
-        const likeParam = `%${search.trim()}%`;
-        const idxLike = i;
-        params.push(likeParam);
-        i++
-
-        let idxVisibleSub = null;
-        if (visibleSub != null) {
-            idxVisibleSub = i;
-            params.push(visibleSub);
-            i++;
-        }
-
-        let idxEstadoSub = null;
-        if (estadoSub != null) {
-            idxEstadoSub = i;
-            params.push(estadoSub);
-            i++;
-        };
-
-        searchSql = `
-            AND (
-            unaccent(lower(c.nombre)) LIKE unaccent(lower($${idxLike}))
-            OR EXISTS (
-             SELECT 1
-             FROM subcategories scc
-             WHERE scc.categoria_id = c.id
-             ${idxVisibleSub ? `AND scc.visible = $${idxVisibleSub}` : ''}
-             ${idxEstadoSub ? `AND scc.activo = $${idxEstadoSub}` : ''}
-             AND unaccent(lower(scc.nombre)) LIKE unaccent(lower($${idxLike}))
-                )
-            )
-        `;
-    };
-
-    const ultimoParametro = params.length;
-
-    const offsetIdx = i++;
-    params.push(offset);
-    const limitIdx = i++;
-    params.push(limit);
-
-    const whereCatSql = whereCat.length ? `WHERE ${whereCat.join(" AND ")} ${searchSql}` : (searchSql ? `WHERE 1=1 ${searchSql}` : "");
-    const whereSubcatSql = whereSubcat.length ? `WHERE ${whereSubcat.join(" AND ")}` : "";
+    const { rowCount } = await pool.query(query, values);
+    return rowCount;
+}
 
 
-    const sql = `
-    WITH subcats AS(
-        SELECT
-         sc.id, sc.nombre, sc.descripcion, sc.activo, sc.categoria_id, sc.fecha_creacion, sc.visible
-         FROM subcategories sc
-         ${whereSubcatSql}
+export const getCategoriasSubcategorias = async ({
+  limit,
+  offset,
+  search,
+  visible,
+  estado,
+  visibleSub,
+  estadoSub,
+} = {}) => {
+  const toBool = (v) =>
+    typeof v === "boolean" ? v : String(v).trim().toLowerCase() === "true";
+  const isSet = (v) => v !== null && v !== undefined && String(v).trim() !== "";
+
+
+  const whereSub = [];
+  const paramsSub = [];
+
+  if (visibleSub != null) {
+    paramsSub.push(Number(visibleSub));
+    whereSub.push(`sc.visible = $${paramsSub.length}`);
+  }
+  if (isSet(estadoSub)) {
+    paramsSub.push(toBool(estadoSub));
+    whereSub.push(`sc.activo = $${paramsSub.length}`);
+  }
+
+  const whereSubSql = whereSub.length ? `WHERE ${whereSub.join(" AND ")}` : "";
+
+ 
+  const whereCatMain = [];
+  const paramsCatMain = [];
+  const offsetIndexMain = paramsSub.length; 
+
+  const addCatMain = (val) => {
+    paramsCatMain.push(val);
+    return `$${offsetIndexMain + paramsCatMain.length}`;
+  };
+
+  if (visible != null) {
+    whereCatMain.push(`c.visible = ${addCatMain(Number(visible))}`);
+  }
+  if (isSet(estado)) {
+    whereCatMain.push(`c.activo = ${addCatMain(toBool(estado))}`);
+  }
+
+  let searchSqlMain = "";
+  if (isSet(search)) {
+    const likeIdx = addCatMain(`%${String(search).trim()}%`);
+    const extraSub = [];
+    if (visibleSub != null) extraSub.push(`scc.visible = ${addCatMain(Number(visibleSub))}`);
+    if (isSet(estadoSub))  extraSub.push(`scc.activo = ${addCatMain(toBool(estadoSub))}`);
+    const extraSubSql = extraSub.length ? `AND ${extraSub.join(" AND ")}` : "";
+
+    searchSqlMain = `
+      AND (
+        unaccent(lower(c.nombre)) LIKE unaccent(lower(${likeIdx}))
+        OR EXISTS (
+          SELECT 1
+          FROM subcategories scc
+          WHERE scc.categoria_id = c.id
+          ${extraSubSql}
+          AND unaccent(lower(scc.nombre)) LIKE unaccent(lower(${likeIdx}))
+        )
+      )
+    `;
+  }
+
+  const whereCatSqlMain =
+    whereCatMain.length || searchSqlMain.trim()
+      ? `WHERE ${whereCatMain.length ? whereCatMain.join(" AND ") : "1=1"} ${searchSqlMain}`
+      : "";
+
+
+  const whereCatCount = [];
+  const paramsCatCount = [];
+
+  const addCatCount = (val) => {
+    paramsCatCount.push(val);
+    return `$${paramsCatCount.length}`;
+  };
+
+  if (visible != null) {
+    whereCatCount.push(`c.visible = ${addCatCount(Number(visible))}`);
+  }
+  if (isSet(estado)) {
+    whereCatCount.push(`c.activo = ${addCatCount(toBool(estado))}`);
+  }
+
+  let searchSqlCount = "";
+  if (isSet(search)) {
+    const likeIdx = addCatCount(`%${String(search).trim()}%`);
+
+    const extraSub = [];
+    if (visibleSub != null) extraSub.push(`scc.visible = ${addCatCount(Number(visibleSub))}`);
+    if (isSet(estadoSub))  extraSub.push(`scc.activo = ${addCatCount(toBool(estadoSub))}`);
+    const extraSubSql = extraSub.length ? `AND ${extraSub.join(" AND ")}` : "";
+
+    searchSqlCount = `
+      AND (
+        unaccent(lower(c.nombre)) LIKE unaccent(lower(${likeIdx}))
+        OR EXISTS (
+          SELECT 1
+          FROM subcategories scc
+          WHERE scc.categoria_id = c.id
+          ${extraSubSql}
+          AND unaccent(lower(scc.nombre)) LIKE unaccent(lower(${likeIdx}))
+        )
+      )
+    `;
+  }
+
+  const whereCatSqlCount =
+    whereCatCount.length || searchSqlCount.trim()
+      ? `WHERE ${whereCatCount.length ? whereCatCount.join(" AND ") : "1=1"} ${searchSqlCount}`
+      : "";
+
+  const offsetIdx = paramsSub.length + paramsCatMain.length + 1;
+  const limitIdx  = offsetIdx + 1;
+
+  const sql = `
+    WITH subcats AS (
+      SELECT
+        sc.id, sc.nombre, sc.descripcion, sc.activo,
+        sc.categoria_id, sc.fecha_creacion, sc.visible
+      FROM subcategories sc
+      ${whereSubSql}
     ),
     cats AS (
-        SELECT
+      SELECT
         c.id, c.nombre, c.descripcion, c.activo, c.fecha_creacion, c.visible
-        FROM categories c
-        ${whereCatSql}
-        ORDER BY c.nombre
-        OFFSET $${offsetIdx}
-        LIMIT $${limitIdx}
+      FROM categories c
+      ${whereCatSqlMain}
+      ORDER BY c.nombre
+      OFFSET $${offsetIdx}
+      LIMIT $${limitIdx}
     )
-        SELECT
-        cats.id, cats.nombre, cats.descripcion, cats.activo, cats.visible, to_char(cats.fecha_creacion, 'YYYY-MM-DD') as "fechaCreacion",
-        COALESCE(
-            JSONB_AGG(
-                JSONB_BUILD_OBJECT(
-                'id', sc.id,
-                'nombre', sc.nombre,
-                'estado', sc.activo,
-                'visible', sc.visible,
-                'fecha_creacion', to_char(sc.fecha_creacion, 'YYYY-MM-DD'),
-                'descripcion', sc.descripcion
-                )
-                ORDER BY sc.nombre
-            )   FILTER (WHERE sc.id IS NOT NULL),
-               '[]'::jsonb
-        )   AS subcategorias
-        FROM cats
-        LEFT JOIN subcats sc ON sc.categoria_id = cats.id
-        GROUP BY cats.id, cats.nombre, cats.descripcion, cats.activo, cats.visible, cats.fecha_creacion
-        ORDER BY cats.nombre;
-        `;
+    SELECT
+      cats.id, cats.nombre, cats.descripcion, cats.activo, cats.visible,
+      to_char(cats.fecha_creacion, 'YYYY-MM-DD') AS "fechaCreacion",
+      COALESCE(
+        JSONB_AGG(
+          JSONB_BUILD_OBJECT(
+            'id', sc.id,
+            'nombre', sc.nombre,
+            'estado', sc.activo,
+            'visible', sc.visible,
+            'fecha_creacion', to_char(sc.fecha_creacion, 'YYYY-MM-DD'),
+            'descripcion', sc.descripcion
+          )
+          ORDER BY sc.nombre
+        ) FILTER (WHERE sc.id IS NOT NULL),
+        '[]'::jsonb
+      ) AS subcategorias
+    FROM cats
+    LEFT JOIN subcats sc ON sc.categoria_id = cats.id
+    GROUP BY cats.id, cats.nombre, cats.descripcion, cats.activo, cats.visible, cats.fecha_creacion
+    ORDER BY cats.nombre;
+  `;
 
-        const countSql = `
-        SELECT COUNT(*)::int as total
-        FROM categories c
-        ${whereCatSql}
-        `;
+  const countSql = `
+    SELECT COUNT(*)::int AS total
+    FROM categories c
+    ${whereCatSqlCount}
+  `;
 
-        const whereParams = params.slice(0, ultimoParametro);
+  const paramsMain  = [...paramsSub, ...paramsCatMain, offset, limit];
+  const paramsCount = paramsCatCount;
 
-        const client = await pool.connect();
-        try {
-            const [data, count] = await Promise.all([
-                client.query(sql, params),
-                client.query(countSql, whereParams)
-            ]);
-            return {
-                rows: data.rows,
-                total: count.rows[0]?.total ?? 0,
-                limit,
-                offset
-            }
-        } finally {
-            client.release();
-        }
+  const client = await pool.connect();
+  try {
+    const [data, count] = await Promise.all([
+      client.query(sql, paramsMain),
+      client.query(countSql, paramsCount),
+    ]);
 
-}
+    return {
+      rows: data.rows,
+      total: count.rows[0]?.total ?? 0,
+      limit,
+      offset,
+    };
+  } finally {
+    client.release();
+  }
+};
 
 
 export const statsCategoriaSubcategorias = async () => {
     const sql = `
     SELECT
-    COUNT(c.*) as total_categorias,
-    COUNT(*) FILTER(WHERE c.activo IS TRUE) AS categorias_activas,
-    COUNT(*) FILTER(WHERE c.activo IS FALSE) AS categorias_inactivas,
-    COUNT(sc.*) FILTER(WHERE sc.activo IS TRUE) AS subcategorias_activas,
-    COUNT(sc.*) FILTER(WHERE sc.activo IS FALSE) AS subcategorias_inactivas
-    FROM categories c
-    LEFT JOIN subcategories sc ON sc.categoria_id = c.id
+    (SELECT COUNT(*) FROM categories)                                           AS total_categorias,
+    (SELECT COUNT(*) FROM categories WHERE activo IS TRUE)                      AS categorias_activas,
+    (SELECT COUNT(*) FROM categories WHERE activo IS FALSE)                     AS categorias_inactivas,
+    (SELECT COUNT(*) FROM subcategories)                                        AS total_subcategorias;
     `;
 
     const { rows } = await pool.query(sql);
@@ -228,8 +311,7 @@ export const statsCategoriaSubcategorias = async () => {
     return {
         categorias_activas: Number(r?.categorias_activas ?? 0),
         categorias_inactivas: Number(r?.categorias_inactivas ?? 0),
-        subcategorias_activas: Number(r?.subcategorias_activas ?? 0),
-        subcategorias_inactivas: Number(r?.subcategorias_inactivas ?? 0),
+        total_subcategorias: Number(r?.total_subcategorias ?? 0),
         total_categorias: Number(r?.total_categorias ?? 0)
     }
 };

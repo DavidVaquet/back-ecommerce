@@ -35,9 +35,64 @@ export const getAllSubcategories = async ({ activo }) => {
 
 export const findSubcategoryName = async (nombre) => {
 
-    const query = `SELECT * FROM subcategories WHERE LOWER(nombre) = LOWER($1);`;
+    const query = `SELECT nombre, id FROM subcategories WHERE LOWER(nombre) = LOWER($1);`;
     const values = [nombre];
 
     const result = await pool.query(query, values);
     return result.rows[0];
 };
+
+
+export const updateSubcategory = async ({id, nombre, descripcion, visible, activo}) => {
+
+    const sets = [];
+    const params = [];
+    let i = 1;
+
+    if (nombre != null) {
+        sets.push(`nombre = $${i++}`);
+        params.push(nombre)
+    }
+
+    if (descripcion != null) {
+        sets.push(`descripcion = $${i++}`);
+        params.push(descripcion);
+    }
+
+    if (visible != null) {
+        sets.push(`visible = $${i++}`);
+        params.push(Number(visible))
+    }
+
+    if (activo != null) {
+      sets.push(`activo = $${i++}`);
+      params.push(activo)
+    }
+
+    if (sets.length === 0) {
+      return { changed: false };
+    }
+
+    params.push(id);
+
+    const query = `UPDATE 
+    subcategories 
+    SET ${sets.join(', ')}
+    WHERE id = $${i} 
+    RETURNING *;`;
+
+    const result = await pool.query(query, params);
+    return result.rows[0];
+    
+};
+
+
+
+export const deleteSubcategory = async(id) => {
+
+    const query = `DELETE FROM subcategories WHERE id = $1`;
+    const values = [id];
+
+    const { rowCount } = await pool.query(query, values);
+    return rowCount;
+}

@@ -1,8 +1,8 @@
 import express from 'express';
-import { getCategories, newCategory, editCategory, categoryState, obtenerCategoriasSubcategorias, statsCategorias } from '../controllers/CategoriesController.js';
+import { getCategories, newCategory, editCategory, categoryState, obtenerCategoriasSubcategorias, statsCategorias, eliminarCategoria } from '../controllers/CategoriesController.js';
 import { verifyAdmin, verifyRole, verifyToken, requireActiveSession, touchSession } from '../middlewares/authMiddlewares.js';
 import { validarCampos } from '../utils/validaciones.js';
-import { body, query } from 'express-validator';
+import { body, param, query } from 'express-validator';
 
 const router = express.Router();
 
@@ -26,8 +26,22 @@ router.post('/createCategory', verifyToken, requireActiveSession, touchSession, 
         .withMessage('El estado de categoria debe ser true o false')
         .toBoolean(),
         validarCampos], newCategory);
-router.put('/editCategory/:id', verifyToken,  requireActiveSession, touchSession, verifyAdmin, editCategory );
-router.patch('/toggleCategoryState/:id', verifyToken, requireActiveSession, touchSession, verifyAdmin, categoryState);
+
+router.patch('/editCategory/:id', verifyToken,  requireActiveSession, touchSession, verifyAdmin, [
+        param('id').toInt(),
+        body('nombre').trim().notEmpty().withMessage('Debes introducir un nombre'),
+        body('visible').toInt().isIn([0, 1]).withMessage('Visible debe ser activo o inactivo'),
+        body('activo').isIn(['true', 'false']).withMessage('Activo debe ser true o false').toBoolean(),
+        validarCampos
+], editCategory);
+
+
+
+router.delete('/delete-category/:id', verifyToken, requireActiveSession, touchSession, verifyAdmin, [
+        param('id').toInt(),
+        validarCampos
+], eliminarCategoria)
+
 router.get('/get-categories-subcategories', verifyToken, verifyAdmin, obtenerCategoriasSubcategorias);
 router.get('/get-stats-categories-subcategories', verifyToken, verifyAdmin, statsCategorias);
 

@@ -1,8 +1,9 @@
 import express from 'express';
-import { addSubcategoria, getAllSubcategorias } from '../controllers/SubcategoriesController.js';
+import { addSubcategoria, editarSubcategory, eliminarSubcategoria, getAllSubcategorias } from '../controllers/SubcategoriesController.js';
 import { verifyToken, requireActiveSession, touchSession } from '../middlewares/authMiddlewares.js';
-import { body, query } from 'express-validator';
+import { body, query, param } from 'express-validator';
 import { validarCampos } from '../utils/validaciones.js';
+import { verifyAdmin } from '../middlewares/authMiddlewares.js';
 
 const router = express.Router();
 
@@ -18,5 +19,20 @@ router.get('/getSubcategories', [
     query('activo').optional().isIn(['true', 'false', true, false]).withMessage('El estado debe ser true o false').bail().toBoolean(),
     validarCampos
 ], getAllSubcategorias);
+
+router.patch('/editSubcategory/:id', verifyToken,  requireActiveSession, touchSession, verifyAdmin, [
+        param('id').toInt(),
+        body('nombre').trim().notEmpty().withMessage('Debes introducir un nombre'),
+        body('visible').toInt().isIn([0, 1]).withMessage('Visible debe ser activo o inactivo'),
+        body('activo').isIn(['true', 'false', true, false]).withMessage('Activo debe ser true o false').toBoolean(),
+        validarCampos
+], editarSubcategory);
+
+
+
+router.delete('/delete-subcategory/:id', verifyToken, requireActiveSession, touchSession, verifyAdmin, [
+        param('id').toInt(),
+        validarCampos
+], eliminarSubcategoria)
 
 export default router;

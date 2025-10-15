@@ -1,4 +1,4 @@
-import { getAllCategories, findCategoryByName, createCategory, updateCategory, toggleCategoryState, getCategoriasSubcategorias, statsCategoriaSubcategorias } from "../models/categoriesModel.js";
+import { getAllCategories, findCategoryByName, createCategory, updateCategory, toggleCategoryState, getCategoriasSubcategorias, statsCategoriaSubcategorias, deleteCategory } from "../models/categoriesModel.js";
 import { activityRecent } from "./UsersControllers.js";
 
 
@@ -48,12 +48,8 @@ export const newCategory = async (req, res) => {
 
 export const editCategory = async (req, res) => {
 
-    const { id } = req.params;
-    const { nombre, descripcion } = req.body;
-
-    if (!nombre || nombre.trim() === '') {
-        return res.status(400).json({ msg: 'El nombre es obligatorio.' });
-    };
+    const id = Number(req.params.id);
+    const { nombre, descripcion, visible, activo } = req.body;
 
     try {
         const categoriaExistente = await findCategoryByName(nombre);
@@ -62,14 +58,16 @@ export const editCategory = async (req, res) => {
             return res.status(400).json({ msg: 'Ya existe una categoria con ese nombre.'})
         };
 
-        const categoriaActualizada = await updateCategory(id, nombre, descripcion);
+        const result = await updateCategory({id, nombre, descripcion, visible, activo});
 
-        if (!categoriaActualizada) {
-            return res.status(400).json({ msg: 'Categoria no encontrada'});
-        };
-        await activityRecent(req, {estado: 'Exitoso', accion: 'Modifico una categoría.'});
+        if (result && result.changed === false) {
+            return res.status(400).json({ msg: 'No hay cambios para aplicar'});
+        }
 
-        return res.status(200).json({ msg: 'Categoria actualizada correctamente', categoriaActualizada});
+        
+        await activityRecent(req, {estado: 'Exitoso', accion: `Modifico la categoría ${result.nombre}`});
+
+        return res.status(200).json({ ok: true, result});
 
     } catch (error) {
         console.error(error);
@@ -86,15 +84,9 @@ export const categoryState = async (req, res) => {
     const { id } = req.params;
     const { activo } = req.body;
 
-    if (!activo) {
-        return res.status(404).json({ msg: 'Debes definir un estado para la categoria'} );
-    }
     try {
-        const updateCategoryState = await toggleCategoryState(id, activo);
+        const updateCategoryState = await toggleCategoryState({id, activo});
 
-        if (!updateCategory) {
-            return res.status(404).json({ msg: 'Categoria no encontrada.'});
-        }
         await activityRecent(req, {estado: 'Exitoso', accion: 'Modifico una categoría.'});
         return res.status(200).json({ msg: 'El estado de la categoria fue actualizado exitosamente.', updateCategoryState});
     } catch (error) {
@@ -103,6 +95,25 @@ export const categoryState = async (req, res) => {
         return res.status(500).json({ msg: 'Error al actualizar el estado de la categoria.'});
     }
 };
+
+
+export const eliminarCategoria = async (req, res) => {
+    try {
+        const id = req.params.id;
+
+        const result = await deleteCategory(id);
+
+        return res.status(200).json({ ok: true, msg: 'Categoria eliminada correctamente'});
+    } catch (error) {
+        console.error(error);
+        if (error.code === '23503') {
+        return res.status(409).json({
+            msg: 'Categoría con productos asociados. Solo puedes desactivarla.'
+        });
+        }
+        return res.status(500).json({ msg: 'Error al eliminar la categoría' });
+    }
+}
 
 export const obtenerCategoriasSubcategorias = async (req, res) => {
     try {
