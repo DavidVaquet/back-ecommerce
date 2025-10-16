@@ -82,7 +82,7 @@ export const editCompanySettings = async ({ orgId, body, file }) => {
     let savedFilename = null;
 
     if (file) {
-      const orgDir = path.join(UPLOAD_DIR, `org-${orgId}`);
+      const orgDir = path.join(UPLOAD_DIR, `org-${orgId}`, "logo");
       await fs.mkdir(orgDir, { recursive: true });
 
       const isSvg = file.mimetype === "image/svg+xml";
@@ -98,7 +98,7 @@ export const editCompanySettings = async ({ orgId, body, file }) => {
           .toFile(absPath);
       }
 
-      newLogoPublicUrl = `${process.env.APP_PUBLIC_URL}/static/uploads/empresa/org-${orgId}/${savedFilename}`;
+      newLogoPublicUrl = `${process.env.API_PUBLIC_URL}/uploads/empresa/org-${orgId}/logo/${savedFilename}`;
       baseParams.push(newLogoPublicUrl);
       baseSets.push(`logo_url = $${baseParams.length}`);
     }

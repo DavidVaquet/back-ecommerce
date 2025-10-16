@@ -35,9 +35,9 @@ export const upload = multer({
 const storageCompany = multer.memoryStorage();
 
 export const fileFiltro = (req, file, cb) => {
-    const allowed = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"];
+    const allowed = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml", "image/webp"];
     if (!allowed.includes(file.mimetype)) {
-        return cb(new Error("Formato no soportado (png/jpg/jpeg/svg)"), false);
+        return cb(new Error("Formato no soportado (png/jpg/jpeg/svg/webp)"), false);
     };
     cb(null, true);
 }

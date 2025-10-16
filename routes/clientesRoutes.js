@@ -11,12 +11,12 @@ router.post('/alta-cliente', verifyToken, [
     .exists({ values: 'falsy'})
     .withMessage('El campo nombre es obligatorio')
     .isLength({ min: 3})
-    .withMessage('Debes introducir al menos 3 caracteres'),
+    .withMessage('El nombre debe tener al menos 3 caracteres'),
     body('apellido')
     .exists({ values: 'falsy'})
     .withMessage('El campo apellido es obligatorio')
     .isLength({ min: 3})
-    .withMessage('Debes introducir al menos 3 caracteres'),
+    .withMessage('El apellido debe tener al menos 3 caracteres'),
     body('email')
     .exists({ values: 'falsy' }).withMessage('Debes introducir un email')
     .isEmail()
@@ -24,7 +24,7 @@ router.post('/alta-cliente', verifyToken, [
     body('telefono')
     .exists({ values: 'falsy'})
     .isLength({ min: 5})
-    .withMessage('Debes introducir al menos 5 caracteres.'),
+    .withMessage('El telefono debe tener al menos 5 caracteres'),
     validarCampos
     ], crearCliente);
 
