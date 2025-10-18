@@ -3,6 +3,7 @@ import { getCategories, newCategory, editCategory, categoryState, obtenerCategor
 import { verifyAdmin, verifyRole, verifyToken, requireActiveSession, touchSession } from '../middlewares/authMiddlewares.js';
 import { validarCampos } from '../utils/validaciones.js';
 import { body, param, query } from 'express-validator';
+import { obtenerCategoriasEcommerce } from '../controllers/Ecommerce/Categorias.js';
 
 const router = express.Router();
 
@@ -14,7 +15,7 @@ router.get('/getCategories',
         .withMessage('El parametro activo debe ser true o false')
         .toBoolean(),
         validarCampos
-        ], getCategories);
+        ], verifyToken, verifyAdmin ,getCategories);
 router.post('/createCategory', verifyToken, requireActiveSession, touchSession, verifyAdmin,
     [body('nombre')
         .exists({values: 'falsy'})
@@ -44,6 +45,18 @@ router.delete('/delete-category/:id', verifyToken, requireActiveSession, touchSe
 
 router.get('/get-categories-subcategories', verifyToken, verifyAdmin, obtenerCategoriasSubcategorias);
 router.get('/get-stats-categories-subcategories', verifyToken, verifyAdmin, statsCategorias);
+
+router.get('/get-categorias', [
+        query('limiteCategorias').optional().isInt({ min: 0}).withMessage('El limite debe ser un entero').bail().toInt(),
+        query('offset').optional().isInt({ min: 0}).withMessage('El offset debe ser un entero').toInt(),
+        query('activo').optional().isIn(['true', 'false', true, false]).withMessage('El activo debe ser true o false').toBoolean(),
+        query('visible').optional().isInt().withMessage('Visible debe ser un entero').toInt(),
+        query('includeCounts').optional().isIn(['true', 'false', true, false]).withMessage('Include counts debe ser true o false').toBoolean(),
+        query('includeSubcats').optional().isIn(['true', 'false', true, false]).withMessage('Includesubcats debe ser true o false').toBoolean(),
+        query('publicadoProd').optional().isInt().withMessage('El publicadoProd debe ser un entero').toInt(),
+        query('estadoProd').optional().isInt().withMessage('El estadoProd debe ser un entero').toInt(),
+        validarCampos
+], obtenerCategoriasEcommerce);
 
 
 export default router;

@@ -114,7 +114,7 @@ export const registrarMovimientoStock = async (req, res) => {
             motivo: motivo,
             precio_venta: pv,
             cliente,
-            document,
+            document: document ?? "N/D",
             costo_unitario: cu,
             metadata: JSON.stringify({ origen: 'registrarMovimientoStock'}
         )});

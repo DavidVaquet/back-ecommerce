@@ -316,3 +316,87 @@ export const statsCategoriaSubcategorias = async () => {
     }
 };
 
+export const categoriasEcommerce = async ({ 
+  limiteCategorias, 
+  offset = 0, 
+  activo, 
+  visible,
+  includeCounts = false,
+  includeSubcats = true,
+  orderBy = 'orden',
+  publicadoProd,
+  estadoProd
+  }) => {
+
+    const sql = `
+     WITH cats AS (
+     SELECT
+     c.id,
+     c.nombre,
+     c.descripcion,
+     c.orden,
+     COUNT(*) OVER()::int as total_rows
+     FROM categories c
+     WHERE
+     ($1::boolean IS NULL or c.activo = $1)
+     AND ($2::int IS NULL or c.visible = $2)
+     ORDER BY COALESCE(c.orden, 999999), c.nombre
+     LIMIT COALESCE($3::int, 2147483647)
+     OFFSET $4
+     )
+     
+     SELECT
+     p.id,
+     p.nombre,
+     p.descripcion,
+     p.orden,
+     CASE WHEN $5::boolean = true THEN (
+     SELECT COUNT (*)::int
+     FROM products pr
+     JOIN subcategories sx ON sx.id = pr.subcategoria_id
+     AND sx.categoria_id = p.id
+     AND ($1::boolean IS NULL OR sx.activo = $1)
+     AND ($2::int IS NULL or sx.visible = $2)
+     WHERE ($6::int IS NULL OR pr.publicado = $6)
+     AND ($7::int IS NULL or pr.estado = $7)
+     ) ELSE NULL END AS product_count,
+     CASE WHEN $8::boolean = true THEN
+     COALESCE((
+     SELECT json_agg(
+     json_build_object(
+     'id', s.id,
+     'nombre', s.nombre,
+     'descripcion', s.descripcion,
+     'orden', s.orden,
+     'product_count',
+     CASE WHEN $5::boolean = true THEN (
+     SELECT COUNT(*)
+     FROM products pr2
+     WHERE pr2.subcategoria_id = s.id
+     AND ($6::int IS NULL OR pr2.publicado = $6)
+     AND ($7::int IS NULL or pr2.estado = $7)
+     ) ELSE NULL END
+     )
+     ORDER BY COALESCE(s.orden, 99999), s.nombre
+     )
+     FROM subcategories s
+     WHERE s.categoria_id = p.id
+     AND ($1::boolean IS NULL OR s.activo = $1)
+     AND ($2::int IS NULL OR s.visible = $2)
+     ), '[]'::json)
+     ELSE '[]'::json END AS subcategorias,
+     p.total_rows
+     FROM cats p;
+    `
+
+    const params = [activo, visible, limiteCategorias, offset, includeCounts, publicadoProd, estadoProd, includeSubcats];
+    console.log('SQL params:', params);
+
+    const { rows } = await pool.query(sql, params);
+    console.log(rows.length);
+
+    return {
+      items: rows
+    };
+
+}
