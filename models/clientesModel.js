@@ -84,7 +84,7 @@ export const getClientesEstado = async ({
 
   const whereSQL = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
-  const lim = Number.isFinite(+limite) && +limite > 0 ? +limite : 25;
+  const lim = Number.isFinite(+limite) && +limite > 0 ? +limite : null;
   const off = Number.isFinite(+offset) && +offset >= 0 ? +offset : 0;
 
   const sql = `
